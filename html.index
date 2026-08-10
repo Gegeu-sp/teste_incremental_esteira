@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RunLab — Mapeamento Fisiológico, Triagem e Prescrição de Treino</title>
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/sora@5.0.17/400.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/sora@5.0.17/600.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/sora@5.0.17/700.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/sora@5.0.17/800.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.18/400.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.18/700.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{display:['Sora','sans-serif'],mono:['"JetBrains Mono"','monospace']},
+colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F03C'}}}}
+</script>
+<style>
+  body{font-family:'Sora',sans-serif;background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(184,240,60,.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(56,189,248,.06), transparent 60%), #0B0F14;}
+  .num{font-family:'JetBrains Mono',monospace;}
+  .tab-btn.active{background:#B8F03C;color:#0B0F14;font-weight:700;}
+  .seg.active{background:#B8F03C;color:#0B0F14;font-weight:700;border-color:#B8F03C;}
+  .card{background:linear-gradient(180deg,#141C28,#10161F);border:1px solid #243144;}
+  .chip{display:inline-flex;align-items:center;gap:.35rem;border-radius:9999px;padding:.15rem .6rem;font-size:.68rem;font-weight:700;letter-spacing:.02em;}
+  .fadein{animation:fade .35s ease both;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .tt-btn{border:1px solid #243144;border-radius:.5rem;padding:.15rem .3rem;font-size:.62rem;transition:.15s;color:#94a3b8;}
+  .tt-btn.on-0{background:rgba(74,222,128,.15);border-color:#4ade80;color:#4ade80;}
+  .tt-btn.on-1{background:rgba(250,204,21,.15);border-color:#facc15;color:#facc15;}
+  .tt-btn.on-2{background:rgba(244,63,94,.15);border-color:#f43f5e;color:#f43f5e;}
+  .ckbox{display:flex;gap:.55rem;align-items:flex-start;border:1px solid #243144;border-radius:.75rem;padding:.55rem .7rem;cursor-pointer;transition:.15s;font-size:.72rem;}
+  .ckbox:has(input:checked){border-color:#B8F03C;background:rgba(184,240,60,.07);}
+  .ckbox.danger:has(input:checked){border-color:#f43f5e;background:rgba(244,63,94,.08);}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#243144;border-radius:8px}
+  @media print{.no-print{display:none!important}body{background:#fff;color:#111}.card{border-color:#ccc;background:#fff}}
+</style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<header class="no-print sticky top-0 z-40 backdrop-blur-md bg-ink/85 border-b border-line">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-lime grid place-items-center shadow-[0_0_24px_rgba(184,240,60,.35)]">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-6 3 3 4-7 4 5 3-3" stroke="#0B0F14" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <h1 class="font-extrabold text-base leading-none tracking-tight">Run<span class="text-lime">Lab</span> <span class="text-[9px] text-slate-500 font-normal">v2</span></h1>
+        <p class="text-[10px] text-slate-400 leading-none mt-1">Triagem • Testes • Zonas • Prescrição</p>
+      </div>
+    </div>
+    <nav class="flex flex-wrap gap-1.5 ml-auto" id="tabbar">
+      <button data-tab="perfil" class="tab-btn active px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">1 · Perfil</button>
+      <button data-tab="triagem" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">2 · Triagem & Repouso</button>
+      <button data-tab="teste" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">3 · Teste Incremental</button>
+      <button data-tab="tolerancia" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">4 · Tolerância</button>
+      <button data-tab="zonas" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">5 · Zonas</button>
+      <button data-tab="plano" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">6 · Plano</button>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+<!-- ============ 1. PERFIL ============ -->
+<section id="tab-perfil" class="tab-panel space-y-6">
+  <div class="fadein">
+    <h2 class="text-2xl font-extrabold">Perfil do Aluno</h2>
+    <p class="text-sm text-slate-400 mt-1">Dados que alimentam triagem, zonas e prescrição. Salvos automaticamente no navegador.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-4 fadein">
+    <div class="card rounded-2xl p-5 md:col-span-2">
+      <div class="grid sm:grid-cols-2 gap-4">
+        <label class="block text-xs text-slate-400">Nome do aluno
+          <input id="pName" type="text" placeholder="Ex.: Ana Silva" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">Idade
+          <input id="pAge" type="number" min="10" max="90" value="30" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">Sexo
+          <select id="pSex" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
+            <option value="m">Masculino</option><option value="f">Feminino</option></select></label>
+        <label class="block text-xs text-slate-400">FC máxima medida <span class="text-slate-500">(opcional — senão usa 208 − 0,7×idade)</span>
+          <input id="pHrMax" type="number" min="100" max="230" placeholder="bpm" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">Nível de treino
+          <select id="pLevel" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
+            <option value="ini">Iniciante</option><option value="int" selected>Intermediário</option><option value="ava">Avançado</option></select></label>
+        <label class="block text-xs text-slate-400">Objetivo principal
+          <select id="pGoal" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
+            <option value="cond">Condicionamento geral</option><option value="cardio">Cardio pós-musculação</option><option value="perf">Performance em corrida</option></select></label>
+      </div>
+    </div>
+    <div class="card rounded-2xl p-5">
+      <h3 class="text-sm font-bold text-lime">Fluxo de avaliação completo</h3>
+      <ol class="mt-3 space-y-2 text-xs text-slate-300 leading-relaxed">
+        <li><b class="text-white">1.</b> Perfil do aluno.</li>
+        <li><b class="text-white">2.</b> <b>Triagem</b>: PA e FC de repouso, limitações clínicas, sinais e sintomas → liberação e escolha do protocolo.</li>
+        <li><b class="text-white">3.</b> <b>Teste incremental</b> (2 min · +1 km/h · 1%) com Talk Test, RPE e sinais/sintomas → VO₂máx, vVO₂max, VT1/RCP.</li>
+        <li><b class="text-white">4.</b> <b>Teste de tolerância</b> (tlim na vVO₂max).</li>
+        <li><b class="text-white">5.</b> <b>Zonas</b> individuais (FC, velocidade, pace, RPE).</li>
+        <li><b class="text-white">6.</b> <b>Plano semanal</b> conforme nº de sessões, objetivo e fase.</li>
+      </ol>
+      <button id="btnResetAll" class="mt-4 w-full text-xs border border-rose-500/40 text-rose-300 rounded-xl py-2 hover:bg-rose-500/10 transition">Apagar todos os dados</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. TRIAGEM ============ -->
+<section id="tab-triagem" class="tab-panel hidden space-y-6">
+  <div class="fadein">
+    <h2 class="text-2xl font-extrabold">Triagem Pré-Teste & Parâmetros de Repouso</h2>
+    <p class="text-sm text-slate-400 mt-1">Antes do teste incremental: meça PA e FC de repouso (5 min sentado), registre limitações clínicas e sinais/sintomas. A saída orienta a <b class="text-slate-200">escolha do protocolo</b> e a liberação para o esforço.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-4">
+    <!-- Repouso -->
+    <div class="card rounded-2xl p-5 space-y-4 fadein">
+      <h3 class="text-sm font-bold">Parâmetros cardiovasculares de repouso</h3>
+      <div class="grid grid-cols-3 gap-3">
+        <label class="block text-xs text-slate-400">PAS (mmHg)
+          <input id="sPas" type="number" min="60" max="260" placeholder="120" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">PAD (mmHg)
+          <input id="sPad" type="number" min="30" max="160" placeholder="80" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">FC (bpm)
+          <input id="sFc" type="number" min="25" max="220" placeholder="70" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+      </div>
+      <div id="restAnalysis" class="rounded-xl border border-line bg-ink p-3 text-xs space-y-1.5"></div>
+
+      <h3 class="text-sm font-bold pt-2">Limitações clínicas e funcionais</h3>
+      <div class="space-y-1.5" id="limitList"></div>
+    </div>
+
+    <!-- Sintomas -->
+    <div class="card rounded-2xl p-5 space-y-4 fadein">
+      <h3 class="text-sm font-bold">Sinais e sintomas relatados</h3>
+      <p class="text-[11px] text-slate-500">Marque o que o aluno relata no momento da avaliação.</p>
+      <div class="space-y-1.5" id="sympList"></div>
+    </div>
+
+    <!-- Parecer -->
+    <div class="space-y-4 fadein">
+      <div class="card rounded-2xl p-5">
+        <h3 class="text-sm font-bold text-lime">Parecer para o teste</h3>
+        <div id="verdict" class="mt-3"></div>
+        <div class="mt-4 rounded-xl bg-ink border border-line p-3">
+          <div class="text-[11px] text-slate-400">Velocidade inicial sugerida para o protocolo</div>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span id="recSpeed" class="num text-2xl font-bold text-lime">6 km/h</span>
+            <button id="btnApplySpeed" class="no-print text-[11px] border border-line rounded-lg px-2.5 py-1.5 hover:border-lime/60 transition">Aplicar ao teste →</button>
+          </div>
+          <p id="recSpeedNote" class="text-[10px] text-slate-500 mt-2 leading-relaxed"></p>
+        </div>
+      </div>
+      <div class="card rounded-2xl p-5 text-[11px] text-slate-400 leading-relaxed">
+        <b class="text-slate-200">Critérios utilizados:</b> PA de repouso ≥ 200/110 mmHg → teste contraindicado; 160–199/100–109 mmHg → liberação médica prévia. Sinais/sintomas agudos (dor torácica, tontura, síncope) → encaminhamento médico antes de qualquer esforço máximo.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. TESTE INCREMENTAL ============ -->
+<section id="tab-teste" class="tab-panel hidden space-y-6">
+  <div class="fadein flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-extrabold">Teste Incremental em Esteira</h2>
+      <p class="text-sm text-slate-400 mt-1">Estágios de <b class="text-slate-200">2 min</b> · <b class="text-slate-200">+1 km/h</b> por estágio · inclinação fixa <b class="text-slate-200">1%</b> · até exaustão voluntária (ideal: 8–12 min).</p>
+    </div>
+    <span class="chip bg-lime/10 text-lime border border-lime/30">Protocolo 2 min · 1 km/h · 1%</span>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-4">
+    <div class="card rounded-2xl p-5 space-y-4 fadein no-print">
+      <h3 class="text-sm font-bold">Configuração</h3>
+      <label class="block text-xs text-slate-400">Velocidade inicial (km/h)
+        <select id="tStart" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
+          <option>4</option><option>5</option><option selected>6</option><option>7</option><option>8</option></select></label>
+      <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+        <input id="tBeep" type="checkbox" checked class="accent-lime w-4 h-4"> Bipe na troca de estágio</label>
+      <div class="rounded-xl bg-ink border border-line p-3 text-xs text-slate-400 leading-relaxed">
+        A inclinação de <b class="text-slate-200">1%</b> compensa a ausência de resistência do ar. Registre <b class="text-slate-200">FC</b>, <b class="text-slate-200">RPE (0–10)</b> e o <b class="text-slate-200">Talk Test</b> ao final de cada estágio para identificar VT1 e RCP/limiar anaeróbico.
+      </div>
+      <div class="text-[11px] space-y-1">
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#4ade80]"></span><span class="text-slate-400">Fala frases completas → abaixo de VT1</span></div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#facc15]"></span><span class="text-slate-400">Apenas palavras → entre VT1 e RCP</span></div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-[#f43f5e]"></span><span class="text-slate-400">Não consegue falar → RCP/VT2 ultrapassado</span></div>
+      </div>
+      <h4 class="text-xs font-bold text-slate-300 pt-1">Velocidade → METs → VO₂</h4>
+      <div class="overflow-hidden rounded-xl border border-line">
+        <table class="w-full text-xs num"><thead class="bg-panel2 text-slate-400"><tr><th class="py-1.5">km/h</th><th>METs</th><th>VO₂</th></tr></thead>
+        <tbody id="metTable" class="text-center divide-y divide-line"></tbody></table>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 card rounded-2xl p-6 fadein">
+      <div id="runArea" class="space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex gap-2">
+            <span class="chip bg-sky-400/10 text-sky-300 border border-sky-400/30">Estágio <span id="stNum" class="num">–</span></span>
+            <span class="chip bg-lime/10 text-lime border border-lime/30 num" id="stSpeed">– km/h</span>
+            <span class="chip bg-slate-400/10 text-slate-300 border border-line num" id="stNext">próximo: –</span>
+          </div>
+          <span class="chip bg-panel2 text-slate-300 border border-line num" id="stVO2">VO₂: – · METs: –</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-6">
+          <div class="relative w-44 h-44 shrink-0">
+            <svg viewBox="0 0 200 200" class="w-full h-full -rotate-90">
+              <circle cx="100" cy="100" r="88" fill="none" stroke="#243144" stroke-width="12"/>
+              <circle id="ring" cx="100" cy="100" r="88" fill="none" stroke="#B8F03C" stroke-width="12" stroke-linecap="round" stroke-dasharray="552.9" stroke-dashoffset="0" style="transition:stroke-dashoffset .15s linear"/>
+            </svg>
+            <div class="absolute inset-0 grid place-items-center">
+              <div class="text-center"><div id="tTime" class="num text-4xl font-bold">02:00</div>
+              <div class="text-[10px] text-slate-400 mt-1">restante do estágio</div></div>
+            </div>
+          </div>
+          <div class="flex-1 min-w-[220px] space-y-3">
+            <div class="num text-xs text-slate-400">Tempo total de teste: <span id="tTotal" class="text-slate-200">00:00</span></div>
+            <div class="flex flex-wrap gap-2 no-print">
+              <button id="btnStart" class="px-4 py-2.5 rounded-xl bg-lime text-ink text-sm font-bold hover:brightness-110 transition">▶ Iniciar teste</button>
+              <button id="btnPause" class="px-4 py-2.5 rounded-xl border border-line text-sm hover:border-lime/60 transition hidden">⏸ Pausar</button>
+              <button id="btnStop" class="px-4 py-2.5 rounded-xl border border-rose-500/50 text-rose-300 text-sm hover:bg-rose-500/10 transition hidden">■ Encerrar (exaustão)</button>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-relaxed">Ao final de cada estágio, registre FC, RPE e o Talk Test na tabela abaixo.</p>
+          </div>
+        </div>
+
+        <!-- Monitor de sinais e sintomas -->
+        <div class="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
+          <div class="text-[11px] font-bold text-rose-300 mb-2">Monitor de sinais e sintomas durante o teste</div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5" id="liveSymp"></div>
+          <div id="sympAlert" class="hidden mt-2 text-[11px] font-bold text-rose-300 animate-pulse">🚨 SINAL DE ALERTA: interrompa o teste imediatamente e encaminhe para avaliação médica.</div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="rounded-xl border border-line bg-ink overflow-hidden">
+            <div class="px-3 py-2 text-[11px] font-bold text-slate-400 bg-panel2">Estágios — FC · RPE · Talk Test</div>
+            <div class="max-h-64 overflow-auto">
+              <table class="w-full text-xs num text-center">
+                <thead class="text-slate-500 sticky top-0 bg-ink"><tr><th class="py-1.5">#</th><th>km/h</th><th>FC</th><th>RPE</th><th class="font-display">Talk Test</th></tr></thead>
+                <tbody id="stageRows" class="divide-y divide-line/60"><tr><td colspan="5" class="py-3 text-slate-600 font-display">Nenhum estágio registrado ainda.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="rounded-xl border border-line bg-ink p-3">
+            <div class="flex justify-between items-center text-[11px] font-bold text-slate-400 mb-2">
+              <span>Curva do teste</span>
+              <span class="num font-normal"><span class="text-[#B8F03C]">■</span> vel · <span class="text-[#38bdf8]">■</span> FC · <span class="text-[#c084fc]">■</span> RPE</span>
+            </div>
+            <canvas id="chart" width="560" height="210" class="w-full h-[180px]"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultados -->
+      <div id="resultArea" class="hidden space-y-4">
+        <div class="flex items-center gap-2">
+          <span class="chip bg-lime/10 text-lime border border-lime/30">✓ Teste concluído</span>
+          <span class="text-xs text-slate-400" id="resDate"></span>
+          <button id="btnRedo" class="ml-auto no-print text-xs border border-line rounded-lg px-3 py-1.5 hover:border-lime/60 transition">↻ Refazer teste</button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="resGrid"></div>
+
+        <!-- Análise VT/RCP -->
+        <div class="grid md:grid-cols-3 gap-3" id="vtCards"></div>
+
+        <!-- Diagnóstico -->
+        <div class="rounded-2xl border border-lime/30 bg-lime/5 p-5" id="diagCard"></div>
+
+        <div class="rounded-xl border border-line bg-ink p-4 text-xs text-slate-300 leading-relaxed" id="resClass"></div>
+        <div class="flex gap-2 no-print">
+          <button data-goto="tolerancia" class="goto px-4 py-2.5 rounded-xl bg-lime text-ink text-sm font-bold hover:brightness-110 transition">Próximo: Teste de Tolerância →</button>
+          <button data-goto="zonas" class="goto px-4 py-2.5 rounded-xl border border-line text-sm hover:border-lime/60 transition">Ver zonas de treino</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. TOLERÂNCIA ============ -->
+<section id="tab-tolerancia" class="tab-panel hidden space-y-6">
+  <div class="fadein">
+    <h2 class="text-2xl font-extrabold">Teste de Resistência de Tolerância (Tempo-Limite)</h2>
+    <p class="text-sm text-slate-400 mt-1">Após o mapeamento, mede <b class="text-slate-200">quanto tempo o aluno sustenta uma carga alta</b> — a velocidade do VO₂máx. Referências: ~<b class="text-slate-200">6 min</b> a 100% da vVO₂max e ~<b class="text-slate-200">3 min</b> a 120%.</p>
+  </div>
+  <div id="tteNoData" class="card rounded-2xl p-8 text-center text-sm text-slate-400 hidden">⚠ Realize primeiro o <b>teste incremental</b>.</div>
+  <div id="tteBody" class="grid lg:grid-cols-3 gap-4">
+    <div class="card rounded-2xl p-5 space-y-3 fadein">
+      <h3 class="text-sm font-bold">Protocolo</h3>
+      <ol class="text-xs text-slate-300 space-y-2 leading-relaxed list-decimal list-inside">
+        <li>Aqueça 10 min em Z2 + 4 acelerações de 20 s.</li>
+        <li>Ajuste a esteira para a <b>velocidade-alvo</b>, inclinação 1%.</li>
+        <li>Corra o <b>máximo de tempo possível</b> mantendo a velocidade.</li>
+        <li>Ao interromper, pare o cronômetro (tlim).</li>
+      </ol>
+      <div class="rounded-xl bg-ink border border-line p-3 space-y-1.5 text-xs num" id="tteTargets"></div>
+      <div class="text-[11px] text-slate-500 leading-relaxed">O tlim calibra a prescrição: as repetições de VO₂máx usam <b class="text-slate-300">50–60% do tlim</b> como duração de cada repetição.</div>
+    </div>
+    <div class="lg:col-span-2 card rounded-2xl p-6 fadein">
+      <div class="text-center space-y-4">
+        <div class="num text-7xl font-bold tracking-tight" id="tteClock">00:00</div>
+        <div class="flex items-center justify-center gap-2 text-xs">
+          <span class="chip bg-slate-400/10 text-slate-300 border border-line">referência média: 06:00</span>
+          <span class="chip bg-panel2 text-slate-300 border border-line num" id="tteDelta">Δ —</span>
+        </div>
+        <div class="w-full max-w-md mx-auto h-2 rounded-full bg-line overflow-hidden"><div id="tteBar" class="h-full bg-lime" style="width:0%"></div></div>
+        <div class="flex justify-center gap-2">
+          <button id="btnTteStart" class="px-5 py-2.5 rounded-xl bg-lime text-ink text-sm font-bold hover:brightness-110 transition">▶ Iniciar</button>
+          <button id="btnTteStop" class="px-5 py-2.5 rounded-xl border border-rose-500/50 text-rose-300 text-sm hover:bg-rose-500/10 transition hidden">■ Parei — registrar</button>
+          <button id="btnTteReset" class="px-5 py-2.5 rounded-xl border border-line text-sm hover:border-lime/60 transition">↺ Zerar</button>
+        </div>
+        <div id="tteResult" class="hidden rounded-xl border border-line bg-ink p-4 text-sm"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. ZONAS ============ -->
+<section id="tab-zonas" class="tab-panel hidden space-y-6">
+  <div class="fadein">
+    <h2 class="text-2xl font-extrabold">Zonas de Treino Personalizadas</h2>
+    <p class="text-sm text-slate-400 mt-1">Frequência cardíaca, velocidade, pace e RPE — derivadas dos limiares do teste (Talk Test quando registrado; senão, estimativa 78/90% da vVO₂max).</p>
+  </div>
+  <div id="zonesNoData" class="card rounded-2xl p-8 text-center text-sm text-slate-400 hidden">⚠ Conclua o teste incremental para gerar as zonas.</div>
+  <div id="zonesBody" class="space-y-4 hidden">
+    <div class="grid sm:grid-cols-4 gap-3" id="zoneSummary"></div>
+    <div id="betaNote" class="hidden rounded-xl border border-amber-400/40 bg-amber-400/5 p-3 text-xs text-amber-200">⚠ O aluno relatou uso de betabloqueadores: a FC fica atenuada — priorize <b>velocidade e RPE</b> para guiar as zonas.</div>
+    <div class="card rounded-2xl overflow-hidden fadein">
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs min-w-[760px]">
+          <thead class="bg-panel2 text-slate-400 text-left"><tr>
+            <th class="px-4 py-3">Zona</th><th class="px-3 py-3">FC (bpm)</th><th class="px-3 py-3">Velocidade (km/h)</th>
+            <th class="px-3 py-3">Pace (/km)</th><th class="px-3 py-3">RPE</th><th class="px-3 py-3">Objetivo</th><th class="px-3 py-3">Combustível</th></tr></thead>
+          <tbody id="zonesRows" class="divide-y divide-line"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-3 gap-4 text-xs">
+      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-lime">VT1 (limiar aeróbico)</b><br><span class="text-slate-400">Última intensidade em que ainda se fala em frases completas (Talk Test). Base aeróbia e queima de gordura.</span></div>
+      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-orange-300">RCP / VT2 (limiar anaeróbico)</b><br><span class="text-slate-400">Ponto de compensação respiratória: a fala torna-se impossível e a ventilação dispara. Ritmos acima não são sustentáveis.</span></div>
+      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-sky-300">Re-teste periódico</b><br><span class="text-slate-400">Os limiares deslocam-se com o treino. Reavalie e atualize as zonas a cada 6–12 semanas.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. PLANO ============ -->
+<section id="tab-plano" class="tab-panel hidden space-y-6">
+  <div class="fadein">
+    <h2 class="text-2xl font-extrabold">Prescrição do Treino</h2>
+    <p class="text-sm text-slate-400 mt-1">Microciclo semanal gerado a partir das zonas e do tlim, conforme sessões, objetivo e fase da periodização.</p>
+  </div>
+  <div class="card rounded-2xl p-5 no-print fadein">
+    <div class="grid md:grid-cols-3 gap-5">
+      <div><div class="text-xs font-bold text-slate-300 mb-2">Sessões por semana</div><div class="flex gap-1.5" id="freqBtns"></div></div>
+      <div><div class="text-xs font-bold text-slate-300 mb-2">Objetivo</div>
+        <div class="flex flex-wrap gap-1.5" id="goalBtns">
+          <button data-goal="cond" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Condicionamento</button>
+          <button data-goal="cardio" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Cardio pós-musculação</button>
+          <button data-goal="perf" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Performance</button></div></div>
+      <div><div class="text-xs font-bold text-slate-300 mb-2">Fase da periodização</div>
+        <div class="flex flex-wrap gap-1.5" id="phaseBtns">
+          <button data-phase="base" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Base</button>
+          <button data-phase="construcao" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Construção</button>
+          <button data-phase="especifico" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Específico</button>
+          <button data-phase="transicao" class="seg px-3 py-2 rounded-lg text-xs border border-line bg-ink transition">Transição</button></div></div>
+    </div>
+    <div class="flex items-center gap-3 mt-5">
+      <button id="btnPrint" class="px-4 py-2.5 rounded-xl bg-lime text-ink text-sm font-bold hover:brightness-110 transition">🖨 Imprimir / salvar plano</button>
+      <span class="text-[11px] text-slate-500" id="planMeta"></span>
+    </div>
+  </div>
+  <div id="planNoData" class="card rounded-2xl p-8 text-center text-sm text-slate-400 hidden">⚠ Conclua o teste incremental para prescrever treinos com zonas individuais.</div>
+  <div id="planBody" class="space-y-5 hidden">
+    <div id="concurrentCard" class="hidden rounded-2xl border border-sky-400/30 bg-sky-400/5 p-5 text-xs leading-relaxed fadein">
+      <b class="text-sky-300">Regras do treino concorrente (cardio + musculação)</b>
+      <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 mt-2 text-slate-300">
+        <div>• <b>Sequência:</b> musculação primeiro, cardio depois.</div>
+        <div>• <b>Intensidade:</b> manter em Z1–Z2.</div>
+        <div>• <b>Duração:</b> 20–30 min por sessão.</div>
+        <div>• <b>Frequência:</b> 2–3×/semana é suficiente.</div>
+        <div>• <b>Distanciamento:</b> se possível, ≥ 3 h entre sessões.</div>
+        <div>• Evite intervalados intensos no dia de pernas.</div>
+      </div>
+      <p class="mt-2 text-slate-400">Com essa estrutura, é possível melhorar o VO₂máx em ~10–15% e a força em ~10–20% em 8–12 semanas, sem interferência relevante.</p>
+    </div>
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="weekGrid"></div>
+    <div class="card rounded-2xl p-5 fadein">
+      <h3 class="text-sm font-bold text-lime mb-3">Periodização geral — macrociclo</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs min-w-[640px]">
+          <thead class="text-slate-400 text-left"><tr class="border-b border-line">
+            <th class="py-2 pr-3">Fase</th><th class="py-2 pr-3">Duração</th><th class="py-2 pr-3">Foco</th><th class="py-2 pr-3">Volume</th><th class="py-2">Intensidade</th></tr></thead>
+          <tbody class="divide-y divide-line/60 text-slate-300">
+            <tr><td class="py-2 pr-3 font-bold text-white">Base</td><td class="pr-3">4–8 sem</td><td class="pr-3">Base aeróbia, economia de corrida</td><td class="pr-3">Alto (70–80% em Z1–Z2)</td><td>Baixa</td></tr>
+            <tr><td class="py-2 pr-3 font-bold text-white">Construção</td><td class="pr-3">3–6 sem</td><td class="pr-3">Limiar (RCP) e VO₂máx</td><td class="pr-3">Moderado</td><td>Média-alta</td></tr>
+            <tr><td class="py-2 pr-3 font-bold text-white">Específico</td><td class="pr-3">2–4 sem</td><td class="pr-3">Ritmo-alvo / tolerância a cargas altas</td><td class="pr-3">Decrescente</td><td>Alta</td></tr>
+            <tr><td class="py-2 pr-3 font-bold text-white">Transição</td><td class="pr-3">1–4 sem</td><td class="pr-3">Recuperação física e mental</td><td class="pr-3">Baixo</td><td>Livre / leve</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-3 leading-relaxed">Distribuição polarizada ≈ <b>80/20</b>: volume maior em Z1–Z3, intensidade concentrada em sessões curtas (Z4–Z5). Progrida ~5–10% por semana, com descarga a cada 3–4. A adaptação ocorre no descanso. Reavalie a cada <b>6–12 semanas</b>.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="border-t border-line py-6 text-center text-[11px] text-slate-500">
+  RunLab · Ferramenta educacional de prescrição baseada em testes — não substitui avaliação médica.
+</footer>
+
+<script>
+/* ================= ESTADO ================= */
+const LS_KEY='runlab_state_v2';
+let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',limits:{},symp:{}},test:null,tte:null,plan:{freq:3,goal:'cond',phase:'base'}};
+try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',limits:{},symp:{}},s.screen||{})});}catch(e){}
+const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
+const $=q=>document.querySelector(q);
+
+/* ================= TABELA METs ================= */
+const MET_PTS=[[4,10.5],[5,14],[6,17.5],[7,21],[8,28],[9,31.5],[10,35],[11,38.5]];
+const METS_TBL=[[4,3,10.5],[5,4,14],[6,5,17.5],[7,6,21],[8,8,28],[9,9,31.5],[10,10,35],[11,11,38.5]];
+function vo2At(v){
+  if(v<=MET_PTS[0][0])return Math.max(3.5,MET_PTS[0][1]-3.5*(MET_PTS[0][0]-v));
+  for(let i=0;i<MET_PTS.length-1;i++){const[x1,y1]=MET_PTS[i],[x2,y2]=MET_PTS[i+1];
+    if(v>=x1&&v<=x2)return y1+(y2-y1)*(v-x1)/(x2-x1);}
+  return 38.5+3.5*(v-11);
+}
+$('#metTable').innerHTML=METS_TBL.map(r=>`<tr><td class="py-1">${r[0]}</td><td>${r[1]}</td><td>${r[2].toFixed(1)}</td></tr>`).join('');
+
+/* ================= TABS ================= */
+function showTab(id){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
+  $('#tab-'+id).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='zonas')renderZones();if(id==='plano')renderPlan();if(id==='tolerancia')renderTte();
+  if(id==='teste')renderTestView();if(id==='triagem')renderScreen();
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+document.querySelectorAll('.goto').forEach(b=>b.onclick=()=>showTab(b.dataset.goto));
+
+/* ================= PERFIL ================= */
+const pFields={pName:'name',pAge:'age',pSex:'sex',pHrMax:'hrMax',pLevel:'level',pGoal:'goal'};
+Object.entries(pFields).forEach(([id,key])=>{const el=$('#'+id);el.value=state.profile[key]??el.value;
+  el.addEventListener('input',()=>{state.profile[key]=el.value;save();});});
+const hrMaxUsed=()=>{const h=+state.profile.hrMax;return(h>=100&&h<=230)?h:Math.round(208-0.7*(+state.profile.age||30));};
+
+/* ================= BIPES ================= */
+let audioCtx=null;
+function beep(n=1,hi=false){if(!$('#tBeep').checked)return;
+  try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
+  for(let i=0;i<n;i++){const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);o.frequency.value=hi?1100:780;
+    const t=audioCtx.currentTime+i*0.28;g.gain.setValueAtTime(0.001,t);
+    g.gain.exponentialRampToValueAtTime(0.25,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+    o.start(t);o.stop(t+0.24);}}catch(e){}}
+
+/* ================= TRIAGEM ================= */
+const LIMITS=[
+  {id:'hip',label:'Hipertensão arterial não controlada'},
+  {id:'cardio',label:'Doença cardiovascular diagnosticada'},
+  {id:'dm',label:'Diabetes'},
+  {id:'orto',label:'Limitação ortopédica em membros inferiores'},
+  {id:'resp',label:'Asma / doença respiratória'},
+  {id:'gest',label:'Gestação'},
+  {id:'cir',label:'Cirurgia recente'},
+  {id:'beta',label:'Uso de betabloqueadores (altera a FC)'}];
+const SYMPTOMS=['Dor torácica','Tontura / vertigem','Dispneia desproporcional','Náusea / vômito','Palidez / sudorese fria','Claudicação / ataxia','Episódio prévio de síncope'];
+const LIVE_SYMPTOMS=['Palidez / sudorese fria','Tontura','Náusea','Dor torácica','Dispneia excessiva','Ataxia / falta de coordenação'];
+const LIVE_DANGER=new Set(['Dor torácica','Tontura','Ataxia / falta de coordenação']);
+
+function buildChecks(){
+  $('#limitList').innerHTML=LIMITS.map(l=>`<label class="ckbox"><input type="checkbox" data-lim="${l.id}" class="accent-lime mt-0.5" ${state.screen.limits[l.id]?'checked':''}><span>${l.label}</span></label>`).join('');
+  $('#sympList').innerHTML=SYMPTOMS.map(s=>`<label class="ckbox danger"><input type="checkbox" data-symp="${s}" class="accent-rose-500 mt-0.5" ${state.screen.symp[s]?'checked':''}><span>${s}</span></label>`).join('');
+  $('#liveSymp').innerHTML=LIVE_SYMPTOMS.map(s=>`<label class="ckbox danger"><input type="checkbox" data-live="${s}" class="accent-rose-500 mt-0.5"><span>${s}</span></label>`).join('');
+  document.querySelectorAll('[data-lim]').forEach(i=>i.onchange=e=>{state.screen.limits[e.target.dataset.lim]=e.target.checked;save();renderScreen();});
+  document.querySelectorAll('[data-symp]').forEach(i=>i.onchange=e=>{state.screen.symp[e.target.dataset.symp]=e.target.checked;save();renderScreen();});
+  document.querySelectorAll('[data-live]').forEach(i=>i.onchange=e=>{
+    const any=[...document.querySelectorAll('[data-live]:checked')].length>0;
+    $('#sympAlert').classList.toggle('hidden',!any);});
+}
+function bpInfo(pas,pad){
+  if(pas>=180||pad>=120)return['Crise hipertensiva — encaminhamento imediato','text-rose-300'];
+  if(pas>=140||pad>=90)return['Hipertensão estágio 2','text-rose-300'];
+  if(pas>=130||pad>=80)return['Hipertensão estágio 1','text-amber-300'];
+  if(pas>=120)return['PA elevada (pré-hipertensão)','text-amber-300'];
+  return['PA normal','text-lime'];
+}
+function recSpeedCalc(){
+  let v={ini:5,int:6,ava:7}[state.profile.level||'int'];
+  if(state.screen.limits.orto)v=Math.max(4,v-2);
+  if(state.screen.limits.cardio)v=Math.max(4,v-1);
+  if((+state.profile.age||30)>=60)v=Math.max(4,v-1);
+  return v;
+}
+function renderScreen(){
+  const pas=+state.screen.pas,pad=+state.screen.pad,fc=+state.screen.fc;
+  let h='';
+  if(pas&&pad){const[c,col]=bpInfo(pas,pad);h+=`<div><span class="text-slate-500">PA:</span> <span class="num text-white">${pas}/${pad}</span> — <span class="${col} font-bold">${c}</span></div>`;}
+  else h+=`<div class="text-slate-500">PA: não registrada</div>`;
+  if(fc){let c=fc<60?'Bradcardia (normal em treinados)':fc>100?'Taquicardia — investigar':'FC de repouso normal';
+    let col=fc>100?'text-amber-300':'text-lime';
+    h+=`<div><span class="text-slate-500">FC repouso:</span> <span class="num text-white">${fc} bpm</span> — <span class="${col} font-bold">${c}</span></div>`;}
+  else h+=`<div class="text-slate-500">FC repouso: não registrada</div>`;
+  $('#restAnalysis').innerHTML=h;
+
+  // parecer
+  const symp=state.screen.symp,lim=state.screen.limits;
+  const danger=!!(symp['Dor torácica']||symp['Episódio prévio de síncope']||symp['Dispneia desproporcional']);
+  let verdict,style,note;
+  if((pas>=200||pad>=110)||danger){
+    verdict='TESTE CONTRAINDICADO';style='border-rose-500/50 bg-rose-500/10 text-rose-300';
+    note='PA ≥ 200/110 mmHg ou sinais/sintomas de alerta. Encaminhe para avaliação médica antes de qualquer teste de esforço.';
+  }else if((pas>=160||pad>=100)||lim.cardio||lim.hip){
+    verdict='LIBERADO COM RESSALVAS';style='border-amber-400/50 bg-amber-400/10 text-amber-300';
+    note='Requer liberação médica prévia e supervisão durante o teste. Considere teste submáximo.';
+  }else{
+    verdict='LIBERADO PARA O TESTE';style='border-lime/50 bg-lime/10 text-lime';
+    note='Sem contraindicações aparentes. Mantenha monitoramento de sinais e sintomas durante o esforço.';
+  }
+  $('#verdict').innerHTML=`<div class="rounded-xl border ${style} px-4 py-3 text-sm font-extrabold tracking-wide">${verdict}</div>
+    <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">${note}</p>`;
+  const rs=recSpeedCalc();
+  $('#recSpeed').textContent=rs+' km/h';
+  let rn='Baseado no nível de treino';
+  if(lim.orto)rn+=' + limitação ortopédica (início mais conservador)';
+  if((+state.profile.age||30)>=60)rn+=' + idade ≥ 60 anos';
+  rn+='. Objetivo: exaustão entre 8–12 min.';
+  $('#recSpeedNote').textContent=rn;
+}
+['sPas','sPad','sFc'].forEach((id,k)=>{const key=['pas','pad','fc'][k];
+  $('#'+id).value=state.screen[key];
+  $('#'+id).addEventListener('input',e=>{state.screen[key]=e.target.value;save();renderScreen();});});
+$('#btnApplySpeed').onclick=()=>{$('#tStart').value=recSpeedCalc();showTab('teste');};
+buildChecks();renderScreen();
+
+/* ================= TESTE INCREMENTAL ================= */
+const STAGE_MS=120000;
+let tmr={running:false,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:[]};
+const curSpeed=()=>(+$('#tStart').value)+tmr.stage;
+const fmtMS=s=>{const m=Math.floor(s/60),r=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0');};
+
+function renderTestView(){
+  const t=state.test;
+  $('#runArea').classList.toggle('hidden',!!t);
+  $('#resultArea').classList.toggle('hidden',!t);
+  if(t)renderResults();
+}
+function updTimerUI(){
+  const rem=Math.max(0,STAGE_MS-tmr.stageMs);
+  $('#tTime').textContent=fmtMS(Math.ceil(rem/1000));
+  $('#tTotal').textContent=fmtMS(tmr.totalMs/1000);
+  $('#stNum').textContent=tmr.stage+1;
+  $('#stSpeed').textContent=curSpeed().toFixed(1)+' km/h';
+  $('#stNext').textContent='próximo: '+(curSpeed()+1).toFixed(1);
+  const vo=vo2At(curSpeed());
+  $('#stVO2').textContent='VO₂: '+vo.toFixed(1)+' · METs: '+(vo/3.5).toFixed(1);
+  $('#ring').style.strokeDashoffset=(552.9*(tmr.stageMs/STAGE_MS)).toFixed(1);
+}
+function loop(ts){
+  if(!tmr.running)return;
+  if(tmr.lastTs==null)tmr.lastTs=ts;
+  const dt=ts-tmr.lastTs;tmr.lastTs=ts;
+  if(!tmr.paused){tmr.stageMs+=dt;tmr.totalMs+=dt;
+    while(tmr.stageMs>=STAGE_MS){tmr.stageMs-=STAGE_MS;completeStage();tmr.stage++;beep(2);}}
+  updTimerUI();tmr.raf=requestAnimationFrame(loop);
+}
+function completeStage(){tmr.stages.push({v:curSpeed(),hr:null,rpe:null,tt:null});renderStageRows();drawChart();beep(1);}
+
+const TT_LABELS=['💬 frases','🗣 palavras','🚫 não fala'];
+function renderStageRows(){
+  const tb=$('#stageRows');
+  if(!tmr.stages.length){tb.innerHTML='<tr><td colspan="5" class="py-3 text-slate-600 font-display">Nenhum estágio registrado ainda.</td></tr>';return;}
+  tb.innerHTML=tmr.stages.map((s,i)=>`<tr>
+    <td class="py-1.5 text-slate-500">${i+1}</td><td>${s.v.toFixed(1)}</td>
+    <td><input data-hr="${i}" type="number" value="${s.hr??''}" placeholder="—" class="w-14 bg-panel border border-line rounded px-1 py-0.5 text-center focus:border-lime outline-none"></td>
+    <td><input data-rpe="${i}" type="number" min="0" max="10" value="${s.rpe??''}" placeholder="0-10" class="w-14 bg-panel border border-line rounded px-1 py-0.5 text-center focus:border-lime outline-none"></td>
+    <td><div class="flex gap-1 justify-center font-display">${TT_LABELS.map((l,k)=>
+      `<button data-tt="${i}" data-k="${k}" class="tt-btn ${s.tt===k?'on-'+k:''}">${l}</button>`).join('')}</div></td></tr>`).join('');
+  tb.querySelectorAll('[data-hr]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.hr].hr=+e.target.value||null;drawChart();}));
+  tb.querySelectorAll('[data-rpe]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.rpe].rpe=Math.min(10,+e.target.value||0)||null;drawChart();}));
+  tb.querySelectorAll('[data-tt]').forEach(b=>b.onclick=e=>{
+    const i=+e.target.dataset.tt,k=+e.target.dataset.k;
+    tmr.stages[i].tt=(tmr.stages[i].tt===k)?null:k;renderStageRows();drawChart();});
+}
+function drawChart(){
+  const c=$('#chart'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+  const st=tmr.stages;
+  if(!st.length){x.fillStyle='#475569';x.font='12px Sora';x.fillText('O gráfico aparece após o 1º estágio.',180,110);return;}
+  const pad=30,w=c.width-pad*2,h=c.height-pad;
+  const vmax=Math.max(...st.map(s=>s.v))+1,vmin=Math.min(...st.map(s=>s.v))-1;
+  const X=i=>pad+(st.length===1?w/2:w*i/(st.length-1||1));
+  const Yv=v=>h-((v-vmin)/(vmax-vmin||1))*h+8;
+  const hrs=st.map(s=>s.hr).filter(Boolean);
+  const hmax=hrs.length?Math.max(...hrs)+8:200,hmin=hrs.length?Math.min(...hrs)-8:60;
+  const Yh=v=>h-((v-hmin)/(hmax-hmin||1))*h+8;
+  const rpes=st.map(s=>s.rpe).filter(Boolean);
+  const Yr=v=>h-(v/10)*h+8;
+  x.strokeStyle='#243144';x.beginPath();x.moveTo(pad,h+8);x.lineTo(c.width-pad,h+8);x.stroke();
+  x.strokeStyle='#B8F03C';x.lineWidth=2;x.beginPath();
+  st.forEach((s,i)=>{i===0?x.moveTo(X(i),Yv(s.v)):x.lineTo(X(i),Yv(s.v));});x.stroke();
+  st.forEach((s,i)=>{x.fillStyle='#B8F03C';x.beginPath();x.arc(X(i),Yv(s.v),3,0,7);x.fill();});
+  if(hrs.length){x.strokeStyle='#38bdf8';x.lineWidth=2;x.beginPath();let on=false;
+    st.forEach((s,i)=>{if(!s.hr)return;on?x.lineTo(X(i),Yh(s.hr)):x.moveTo(X(i),Yh(s.hr));on=true;});x.stroke();
+    st.forEach((s,i)=>{if(!s.hr)return;x.fillStyle='#38bdf8';x.beginPath();x.arc(X(i),Yh(s.hr),3,0,7);x.fill();});}
+  if(rpes.length){x.strokeStyle='#c084fc';x.lineWidth=2;x.setLineDash([4,3]);x.beginPath();let on=false;
+    st.forEach((s,i)=>{if(s.rpe==null)return;on?x.lineTo(X(i),Yr(s.rpe)):x.moveTo(X(i),Yr(s.rpe));on=true;});x.stroke();x.setLineDash([]);
+    st.forEach((s,i)=>{if(s.rpe==null)return;x.fillStyle='#c084fc';x.beginPath();x.arc(X(i),Yr(s.rpe),3,0,7);x.fill();});}
+  x.fillStyle='#64748b';x.font='10px JetBrains Mono';
+  x.fillText(vmax.toFixed(0)+' km/h',2,16);
+  if(hrs.length)x.fillText('FC '+hmax.toFixed(0),c.width-64,16);
+  x.fillText('RPE 10',c.width-64,30);
+}
+$('#btnStart').onclick=()=>{
+  tmr={running:true,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:tmr.stages};
+  $('#btnStart').classList.add('hidden');$('#btnPause').classList.remove('hidden');$('#btnStop').classList.remove('hidden');
+  tmr.raf=requestAnimationFrame(loop);beep(1);
+};
+$('#btnPause').onclick=()=>{tmr.paused=!tmr.paused;$('#btnPause').textContent=tmr.paused?'▶ Retomar':'⏸ Pausar';};
+$('#btnStop').onclick=()=>finishTest();
+
+function deriveVTs(stages,startV,vPeak){
+  let vt1V=null,vt2V=null,fcVT1=null,fcVT2=null;
+  for(let i=stages.length-1;i>=0;i--)if(stages[i].tt===0){vt1V=startV+i;if(stages[i].hr)fcVT1=stages[i].hr;break;}
+  const f2=stages.findIndex(s=>s.tt===2);
+  if(f2>=0){vt2V=startV+f2;fcVT2=stages[f2].hr||null;}
+  else{const f1=stages.findIndex(s=>s.tt===1);if(f1>=0){vt2V=Math.min(vPeak,startV+f1+1);fcVT2=stages[f1]?.hr||null;}}
+  if(vt1V!=null)vt1V=Math.min(vt1V,vPeak);
+  if(vt2V!=null)vt2V=Math.min(vt2V,vPeak);
+  return{vt1V,vt2V,fcVT1,fcVT2};
+}
+function finishTest(){
+  if(!tmr.running)return;
+  cancelAnimationFrame(tmr.raf);tmr.running=false;
+  const frac=Math.min(1,tmr.stageMs/STAGE_MS);
+  const startV=+$('#tStart').value;
+  const vPeak=+(startV+tmr.stage+frac).toFixed(2);
+  const vo2=vo2At(vPeak);
+  const vt=deriveVTs(tmr.stages,startV,vPeak);
+  state.test={vPeak,vo2max:+vo2.toFixed(1),mets:+(vo2/3.5).toFixed(1),
+    totalSec:Math.round(tmr.totalMs/1000),stages:tmr.stages.map(s=>({...s})),
+    startV,hrMaxUsed:hrMaxUsed(),date:new Date().toLocaleDateString('pt-BR'),...vt};
+  save();beep(3,true);
+  tmr={running:false,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:[]};
+  $('#btnStart').classList.remove('hidden');$('#btnPause').classList.add('hidden');$('#btnStop').classList.add('hidden');
+  $('#btnPause').textContent='⏸ Pausar';$('#ring').style.strokeDashoffset=0;$('#tTime').textContent='02:00';
+  renderTestView();renderZones();
+}
+$('#btnRedo').onclick=()=>{state.test=null;save();renderTestView();};
+$('#tStart').addEventListener('change',()=>{if(!tmr.running)updTimerUI();});
+updTimerUI();
+
+/* ================= DIAGNÓSTICO ================= */
+const AVG={m:[[30,44],[40,42],[50,40],[60,37],[200,33]],f:[[30,37],[40,35],[50,34],[60,31],[200,27]]};
+function getAvg(age,sex){const t=AVG[sex==='f'?'f':'m'];for(const[lim,v]of t)if(age<lim)return v;return t[t.length-1][1];}
+function diagnose(vo2){
+  const age=+state.profile.age||30,sex=state.profile.sex||'m';
+  const avg=getAvg(age,sex);
+  const pct=(vo2-avg)/avg*100;
+  let cls,style;
+  if(pct>=50){cls='EXCELENTE';style='text-lime border-lime/50 bg-lime/10';}
+  else if(pct>=30){cls='BOM';style='text-emerald-300 border-emerald-400/50 bg-emerald-400/10';}
+  else if(pct>=-10){cls='REGULAR';style='text-sky-300 border-sky-400/50 bg-sky-400/10';}
+  else if(pct>=-20){cls='REGULAR INFERIOR';style='text-amber-300 border-amber-400/50 bg-amber-400/10';}
+  else{cls='RUIM';style='text-rose-300 border-rose-400/50 bg-rose-400/10';}
+  return{avg,pct,cls,style};
+}
+
+/* ================= RESULTADOS ================= */
+function pace(v){if(v<=0)return'—';const p=60/v;const m=Math.floor(p);const s=Math.round((p-m)*60);return m+"'"+String(s).padStart(2,'0')+'"';}
+function renderResults(){
+  const t=state.test;
+  $('#resDate').textContent='realizado em '+t.date;
+  const metrics=[
+    ['vPico / vVO₂max',t.vPeak.toFixed(1)+' km/h','pace '+pace(t.vPeak)],
+    ['VO₂máx estimado',t.vo2max.toFixed(1),'ml/kg·min · '+(t.mets).toFixed(1)+' METs'],
+    ['VT1',t.vt1V!=null?t.vt1V.toFixed(1)+' km/h':'não identificado','fala em frases (Talk Test)'],
+    ['RCP / VT2 (LA)',t.vt2V!=null?t.vt2V.toFixed(1)+' km/h':'não identificado','fala impossível (Talk Test)']
+  ];
+  $('#resGrid').innerHTML=metrics.map(m=>`<div class="rounded-xl border border-line bg-ink p-4">
+    <div class="text-[10px] uppercase tracking-wider text-slate-500">${m[0]}</div>
+    <div class="num text-xl font-bold text-white mt-1">${m[1]}</div>
+    <div class="text-[10px] text-slate-500 mt-0.5">${m[2]}</div></div>`).join('');
+
+  const d=diagnose(t.vo2max);
+  const sexL=state.profile.sex==='f'?'Feminino':'Masculino';
+  $('#diagCard').innerHTML=`
+    <div class="flex flex-wrap items-center gap-3">
+      <h3 class="text-sm font-extrabold text-lime">Diagnóstico da Aptidão Cardiorrespiratória</h3>
+      <span class="chip border ${d.style} text-sm px-4 py-1">${d.cls}</span>
+      <span class="text-[11px] text-slate-400">ref.: média ${sexL.toLowerCase()} · ${state.profile.age} anos</span>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mt-4">
+      <div class="rounded-xl bg-ink border border-line p-3 text-center"><div class="text-[10px] text-slate-500">VO₂máx do aluno</div><div class="num text-2xl font-bold text-white">${t.vo2max.toFixed(1)}</div></div>
+      <div class="rounded-xl bg-ink border border-line p-3 text-center"><div class="text-[10px] text-slate-500">Média de referência</div><div class="num text-2xl font-bold text-white">${d.avg}</div></div>
+      <div class="rounded-xl bg-ink border border-line p-3 text-center"><div class="text-[10px] text-slate-500">Diferença</div><div class="num text-2xl font-bold ${d.pct>=0?'text-lime':'text-rose-300'}">${d.pct>=0?'+':''}${d.pct.toFixed(0)}%</div></div>
+    </div>
+    <div class="mt-4 text-[10px] text-slate-400 grid sm:grid-cols-4 gap-1.5 num">
+      <div>Excelente ≥ +50%</div><div>Bom +30 a +45%</div><div>Regular ± 10%</div><div>Ruim ≥ −20%</div>
+    </div>`;
+
+  $('#vtCards').innerHTML=[
+    {t:'VT1 — Limiar Aeróbico',c:'#4ade80',v:t.vt1V,fc:t.fcVT1,d:'Último estágio falando em frases completas. Base para Z2.'},
+    {t:'RCP — Limiar Anaeróbico',c:'#fb923c',v:t.vt2V,fc:t.fcVT2,d:'Ponto de compensação respiratória: fala impossível. Base para Z3/Z4.'},
+    {t:'VO₂máx / vVO₂max',c:'#38bdf8',v:t.vPeak,fc:t.hrMaxUsed,d:'Carga máxima do teste — base para Z5 e para o teste de tolerância.'}
+  ].map(c=>`<div class="rounded-xl border border-line bg-ink p-4">
+    <div class="text-[11px] font-bold" style="color:${c.c}">${c.t}</div>
+    <div class="num text-lg font-bold text-white mt-1">${c.v!=null?c.v.toFixed(1)+' km/h':'—'}${c.fc?` <span class="text-xs text-slate-500">· ${c.fc} bpm</span>`:''}</div>
+    <div class="text-[10px] text-slate-500 mt-1 leading-relaxed">${c.d}</div></div>`).join('');
+
+  const z=zonesData();
+  $('#resClass').innerHTML=`Limiares ${t.vt1V!=null?'<b class="text-lime">identificados pelo Talk Test</b> durante o teste':'estimados (78/90% da vVO₂max — registre o Talk Test no próximo teste para identificá-los diretamente)'}:
+    VT1 ≈ ${z.vVT1} km/h (${z.fcVT1} bpm) · RCP/VT2 ≈ ${z.vVT2} km/h (${z.fcVT2} bpm).
+    Próximo passo: <b class="text-lime">teste de tolerância</b> a ${t.vPeak.toFixed(1)} km/h para medir o tempo-limite e calibrar os intervalados.`;
+}
+
+/* ================= ZONAS ================= */
+const ZCOLORS=['#38bdf8','#4ade80','#facc15','#fb923c','#f43f5e'];
+const ZMETA=[
+ {n:'Z1',name:'Recuperação Ativa',rpe:'1–2',fuel:'>90% gordura',goal:'Circulação e recuperação ativa'},
+ {n:'Z2',name:'Aeróbico / Base',rpe:'3–4',fuel:'70–90% gordura',goal:'Base aeróbia, mitocôndrias e capilares'},
+ {n:'Z3',name:'Tempo / Controle',rpe:'5–6',fuel:'~50/50 carbo-gordura',goal:'Processamento de lactato, ritmo sustentado'},
+ {n:'Z4',name:'Limiar / Suporte',rpe:'7–8',fuel:'Carboidratos dominantes',goal:'Velocidade sustentável no limiar anaeróbico'},
+ {n:'Z5',name:'VO₂máx / Intervalos',rpe:'9–10',fuel:'>90% carboidratos',goal:'VO₂máx e esforços de 30 s a 5 min'}];
+function zonesData(){
+  const t=state.test;if(!t)return null;
+  const hrm=t.hrMaxUsed||hrMaxUsed();
+  const vVT1=t.vt1V!=null?+t.vt1V:+(t.vPeak*0.78).toFixed(1);
+  const vVT2=t.vt2V!=null?+t.vt2V:+(t.vPeak*0.90).toFixed(1);
+  let fcVT1=t.fcVT1||Math.round(hrm*0.78);
+  let fcVT2=t.fcVT2||Math.round(hrm*0.90);
+  fcVT1=Math.min(fcVT1,fcVT2-3);fcVT2=Math.min(fcVT2,hrm-3);
+  const r1=Math.round(fcVT1*0.90);
+  const ranges=[
+    {fc:`< ${r1}`,vMin:3.5,vMax:+(vVT1*0.85).toFixed(1)},
+    {fc:`${r1} – ${fcVT1}`,vMin:+(vVT1*0.85).toFixed(1),vMax:vVT1},
+    {fc:`${fcVT1} – ${fcVT2}`,vMin:vVT1,vMax:vVT2},
+    {fc:`${fcVT2} – ${Math.round(fcVT2*1.03)}`,vMin:vVT2,vMax:t.vPeak},
+    {fc:`> ${Math.round(fcVT2*1.03)}`,vMin:t.vPeak,vMax:+(t.vPeak*1.10).toFixed(1)}];
+  return{hrm,fcVT1,fcVT2,vVT1,vVT2,ranges};
+}
+function renderZones(){
+  const z=zonesData();
+  $('#zonesNoData').classList.toggle('hidden',!!z);
+  $('#zonesBody').classList.toggle('hidden',!z);
+  if(!z)return;
+  $('#betaNote').classList.toggle('hidden',!state.screen.limits.beta);
+  $('#zoneSummary').innerHTML=[['FCmáx',z.hrm+' bpm'],['FC @ VT1',z.fcVT1+' bpm'],['FC @ RCP/VT2',z.fcVT2+' bpm'],['vVO₂max',state.test.vPeak.toFixed(1)+' km/h']]
+    .map(s=>`<div class="card rounded-2xl p-4 text-center"><div class="text-[10px] uppercase tracking-wider text-slate-500">${s[0]}</div><div class="num text-lg font-bold text-lime mt-1">${s[1]}</div></div>`).join('');
+  $('#zonesRows').innerHTML=ZMETA.map((m,i)=>{const r=z.ranges[i];return `
+    <tr class="hover:bg-panel2/50 transition">
+      <td class="px-4 py-3"><span class="chip text-ink font-extrabold" style="background:${ZCOLORS[i]}">${m.n}</span><div class="mt-1 text-[11px] font-bold text-slate-200">${m.name}</div></td>
+      <td class="px-3 py-3 num text-slate-100">${r.fc}</td>
+      <td class="px-3 py-3 num text-slate-100">${r.vMin.toFixed(1)} – ${r.vMax.toFixed(1)}</td>
+      <td class="px-3 py-3 num text-slate-300">${pace(r.vMax)} – ${pace(r.vMin)}</td>
+      <td class="px-3 py-3 num text-slate-300">${m.rpe}</td>
+      <td class="px-3 py-3 text-slate-300">${m.goal}</td>
+      <td class="px-3 py-3 text-slate-400">${m.fuel}</td></tr>`;}).join('');
+}
+
+/* ================= TOLERÂNCIA ================= */
+let tte={running:false,ms:0,last:null,raf:null};
+function renderTte(){
+  const t=state.test;
+  $('#tteNoData').classList.toggle('hidden',!!t);
+  $('#tteBody').classList.toggle('hidden',!t);
+  if(!t)return;
+  const v=t.vPeak;
+  $('#tteTargets').innerHTML=[
+    ['100% vVO₂max',v.toFixed(1)+' km/h',pace(v),'alvo padrão · ref. ≈ 6 min'],
+    ['90% vVO₂max',(v*0.9).toFixed(1)+' km/h',pace(v*0.9),'opção conservadora'],
+    ['120% vVO₂max',(v*1.2).toFixed(1)+' km/h',pace(v*1.2),'muito intenso · ref. ≈ 3 min']]
+  .map(r=>`<div class="flex justify-between gap-2"><span class="text-slate-400">${r[0]}</span><span class="text-white">${r[1]} <span class="text-slate-500">(${r[2]}/km)</span></span><span class="text-slate-500 hidden lg:inline">${r[3]}</span></div>`).join('');
+  if(state.tte)showTteResult(state.tte.sec,false);
+}
+function tteLoop(ts){if(!tte.running)return;
+  if(tte.last==null)tte.last=ts;
+  tte.ms+=ts-tte.last;tte.last=ts;
+  $('#tteClock').textContent=fmtMS(Math.floor(tte.ms/1000));
+  $('#tteBar').style.width=Math.min(100,tte.ms/3600).toFixed(1)+'%';
+  const d=tte.ms/1000-360;
+  $('#tteDelta').textContent='Δ '+(d>=0?'+':'−')+fmtMS(Math.abs(d));
+  tte.raf=requestAnimationFrame(tteLoop);}
+$('#btnTteStart').onclick=()=>{if(tte.running)return;
+  tte.running=true;tte.last=null;
+  $('#btnTteStart').classList.add('hidden');$('#btnTteStop').classList.remove('hidden');
+  tte.raf=requestAnimationFrame(tteLoop);beep(1);};
+$('#btnTteStop').onclick=()=>{tte.running=false;cancelAnimationFrame(tte.raf);
+  $('#btnTteStart').classList.remove('hidden');$('#btnTteStop').classList.add('hidden');
+  const sec=Math.floor(tte.ms/1000);
+  state.tte={sec,date:new Date().toLocaleDateString('pt-BR'),v:state.test.vPeak};save();
+  showTteResult(sec,true);beep(3,true);};
+$('#btnTteReset').onclick=()=>{tte.running=false;cancelAnimationFrame(tte.raf);tte.ms=0;
+  $('#tteClock').textContent='00:00';$('#tteBar').style.width='0%';$('#tteDelta').textContent='Δ —';};
+function tteClass(sec){
+  if(sec<210)return['Abaixo do esperado','text-rose-300'];
+  if(sec<300)return['Regular','text-amber-300'];
+  if(sec<420)return['Bom (≈ média da literatura)','text-sky-300'];
+  if(sec<540)return['Muito bom','text-lime'];
+  return['Excelente','text-lime'];}
+function showTteResult(sec,fresh){
+  const[cls,col]=tteClass(sec);
+  $('#tteResult').classList.remove('hidden');
+  $('#tteResult').innerHTML=`<div class="flex flex-wrap items-center gap-3 justify-center">
+    <span class="text-slate-400 text-xs">${fresh?'Resultado registrado':'Último resultado'} (${state.tte.date}):</span>
+    <span class="num text-2xl font-bold text-white">${fmtMS(sec)}</span>
+    <span class="chip border border-line ${col}">${cls}</span></div>
+    <p class="text-[11px] text-slate-500 mt-2">Prescrição derivada: repetições de VO₂máx de <b class="text-slate-300">${fmtMS(Math.round(sec*0.55))}</b> (55% do tlim) a ~${(state.tte.v||state.test.vPeak).toFixed(1)} km/h, com pausa igual em trote leve.</p>`;}
+
+/* ================= PLANO ================= */
+const DAYS_BY_N={2:['Ter','Sáb'],3:['Ter','Qui','Dom'],4:['Seg','Ter','Qui','Sáb'],5:['Seg','Ter','Qui','Sex','Dom'],6:['Seg','Ter','Qua','Qui','Sex','Sáb']};
+function buildFreqBtns(){const w=$('#freqBtns');w.innerHTML='';
+  for(let n=2;n<=6;n++){const b=document.createElement('button');
+    b.textContent=n;b.dataset.n=n;
+    b.className='seg w-10 h-10 rounded-lg text-sm border border-line bg-ink num transition';
+    b.onclick=()=>{state.plan.freq=n;save();syncPlanControls();renderPlan();};
+    w.appendChild(b);}}
+function syncPlanControls(){
+  document.querySelectorAll('#freqBtns button').forEach(b=>b.classList.toggle('active',+b.dataset.n===state.plan.freq));
+  document.querySelectorAll('#goalBtns .seg').forEach(b=>b.classList.toggle('active',b.dataset.goal===state.plan.goal));
+  document.querySelectorAll('#phaseBtns .seg').forEach(b=>b.classList.toggle('active',b.dataset.phase===state.plan.phase));}
+document.querySelectorAll('#goalBtns .seg').forEach(b=>b.onclick=()=>{state.plan.goal=b.dataset.goal;save();syncPlanControls();renderPlan();});
+document.querySelectorAll('#phaseBtns .seg').forEach(b=>b.onclick=()=>{state.plan.phase=b.dataset.phase;save();syncPlanControls();renderPlan();});
+$('#btnPrint').onclick=()=>window.print();
+function zTarget(i){const z=zonesData();const r=z.ranges[i];
+  return{v:`${r.vMin.toFixed(1)}–${r.vMax.toFixed(1)} km/h`,pace:`${pace(r.vMax)}–${pace(r.vMin)}/km`,fc:r.fc+' bpm'};}
+function sessionCard(day,zi,title,structure,dur,extra){const c=ZCOLORS[zi];
+  return `<div class="card rounded-2xl p-5 fadein flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">${day}</span>
+      <span class="chip text-ink font-extrabold" style="background:${c}">Z${zi+1}</span></div>
+    <div><h4 class="font-bold text-sm">${title}</h4><span class="text-[10px] text-slate-500 num">${dur}</span></div>
+    <div class="rounded-xl bg-ink border border-line p-3 text-[11px] num text-slate-300 space-y-1">
+      <div>🏃 Velocidade: <b class="text-white">${extra.v}</b></div>
+      <div>⏱ Pace: <b class="text-white">${extra.pace}</b></div>
+      <div>❤️ FC: <b class="text-white">${extra.fc}</b></div></div>
+    <ol class="text-[11px] text-slate-300 space-y-1 leading-relaxed list-decimal list-inside flex-1">${structure.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;}
+function planSessions(){
+  const z=zonesData();if(!z)return[];
+  const ph=state.plan.phase,n=state.plan.freq,goal=state.plan.goal;
+  const tlim=state.tte?state.tte.sec:null;
+  const repDur=Math.max(90,Math.min(300,Math.round((tlim||360)*0.55)));
+  const z1=zTarget(0),z2=zTarget(1),z3=zTarget(2),z5=zTarget(4);
+  const vVO2=state.test.vPeak;
+  const rod=short=>({zi:1,title:'Rodagem aeróbia',dur:(short?30:(ph==='base'?45:ph==='transicao'?30:40))+' min',tgt:z2,steps:[
+    'Ritmo confortável, conversa fluida (RPE 3–4).','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']});
+  const rec=()=>({zi:0,title:'Recuperação ativa',dur:'25–30 min',tgt:z1,steps:[
+    'Trote muito leve ou caminhada inclinada (RPE 1–2).','Objetivo: fluxo sanguíneo e recuperação — sem fadiga.']});
+  const longao=()=>({zi:1,title:'Longão',dur:(ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45)+' min',tgt:z2,steps:[
+    'Ritmo Z2 constante do início ao fim.','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']});
+  let qualidade;
+  if(ph==='base')qualidade={zi:3,title:'Fartlek leve',dur:'35–40 min',tgt:zTarget(3),steps:[
+    '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1).','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']};
+  else if(ph==='transicao')qualidade={zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
+    'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']};
+  else qualidade={zi:4,title:'Intervalos de VO₂máx',dur:'40–50 min',tgt:z5,steps:[
+    '10 min de aquecimento em Z2.',
+    `${ph==='especifico'?4:5} × ${fmtMS(repDur)} a ${vVO2.toFixed(1)} km/h (100% vVO₂max).`,
+    `Pausa de ${fmtMS(repDur)} em trote leve (1:1).`,'10 min de desaquecimento em Z1.','Repetições de 55% do tlim — calibradas pelo teste de tolerância.']};
+  const tempo={zi:2,title:'Tempo run (limiar)',dur:'40–45 min',tgt:z3,steps:[
+    '10 min de aquecimento em Z2.',
+    (ph==='construcao'||ph==='especifico')?`3 × 8 min em Z3 alta (~${z.vVT2} km/h), pausa de 2 min trotando.`:`2 × 10 min entre Z3 e Z4 (~${z.vVT2} km/h), pausa de 2 min trotando.`,
+    '10 min de volta à calma.','Sensação de “desconforto controlado” (RPE 5–7).']};
+  if(goal==='cardio'){
+    return Array.from({length:n},(_,i)=>({zi:1,title:'Cardio pós-musculação',dur:'20–30 min',tgt:i%2?z1:z2,steps:[
+      'Realizar logo após a musculação (força primeiro).','Intensidade Z1–Z2, conversa fácil (RPE ≤ 4).',
+      i%2?'Alternar: caminhada inclinada (4–6%) ou trote leve.':'Esteira em ritmo contínuo e estável.',
+      'Parar antes de gerar fadiga relevante.']}));}
+  const L=[];
+  if(n===2)L.push(rod(),qualidade);
+  if(n===3)L.push(rod(),qualidade,longao());
+  if(n===4)L.push(rod(),qualidade,rec(),longao());
+  if(n===5)L.push(rod(),qualidade,rec(),tempo,longao());
+  if(n===6)L.push(rod(),qualidade,rec(),tempo,rod(true),longao());
+  return L;}
+function renderPlan(){
+  const z=zonesData();
+  $('#planNoData').classList.toggle('hidden',!!z);
+  $('#planBody').classList.toggle('hidden',!z);
+  if(!z)return;
+  syncPlanControls();
+  $('#concurrentCard').classList.toggle('hidden',state.plan.goal!=='cardio');
+  const days=DAYS_BY_N[state.plan.freq];
+  $('#weekGrid').innerHTML=planSessions().map((s,i)=>sessionCard(days[i],s.zi,s.title,s.steps,s.dur,s.tgt)).join('');
+  const phaseNames={base:'Base',construcao:'Construção',especifico:'Específico',transicao:'Transição'};
+  const goalNames={cond:'Condicionamento geral',cardio:'Cardio pós-musculação',perf:'Performance em corrida'};
+  $('#planMeta').textContent=`${state.profile.name?state.profile.name+' · ':''}${state.plan.freq}×/semana · ${goalNames[state.plan.goal]} · fase ${phaseNames[state.plan.phase]} · vVO₂max ${state.test.vPeak.toFixed(1)} km/h${state.tte?' · tlim '+fmtMS(state.tte.sec):''}`;}
+
+/* ================= GERAL ================= */
+$('#btnResetAll').onclick=()=>{if(confirm('Apagar todos os dados salvos?')){localStorage.removeItem(LS_KEY);location.reload();}};
+buildFreqBtns();syncPlanControls();
+if(state.test)renderTestView();
+renderZones();renderTte();renderPlan();
+showTab('perfil');
+</script>
+</body>
+</html>
