@@ -4,6 +4,6 @@
   "private": true,
   "description": "RunLab — triagem, teste incremental em esteira, zonas e prescrição de treino (app estático, sem backend).",
   "scripts": {
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test tests/*.test.js"
   }
 }
