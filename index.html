@@ -79,8 +79,8 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         <label class="block text-xs text-slate-400">Sexo
           <select id="pSex" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="m">Masculino</option><option value="f">Feminino</option></select></label>
-        <label class="block text-xs text-slate-400">FC máxima medida <span class="text-slate-500">(opcional — senão usa 208 − 0,7×idade)</span>
-          <input id="pHrMax" type="number" min="100" max="230" placeholder="bpm" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">Altura (cm)
+          <input id="pHeight" type="number" min="100" max="230" placeholder="170" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Nível de treino
           <select id="pLevel" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="ini">Iniciante</option><option value="int" selected>Intermediário</option><option value="ava">Avançado</option></select></label>
@@ -122,6 +122,10 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
           <input id="sPad" type="number" min="30" max="160" placeholder="80" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">FC (bpm)
           <input id="sFc" type="number" min="25" max="220" placeholder="70" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">SpO₂ (%)
+          <input id="sSpo2" type="number" min="50" max="100" placeholder="98" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400 col-span-2">Glicose (mg/dL) <span class="text-slate-500">(opcional)</span>
+          <input id="sGlicose" type="number" min="30" max="600" placeholder="90" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
       </div>
       <div id="restAnalysis" class="rounded-xl border border-line bg-ink p-3 text-xs space-y-1.5"></div>
 
@@ -151,7 +155,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         </div>
       </div>
       <div class="card rounded-2xl p-5 text-[11px] text-slate-400 leading-relaxed">
-        <b class="text-slate-200">Critérios utilizados:</b> PA de repouso ≥ 200/110 mmHg → teste contraindicado; 160–199/100–109 mmHg → liberação médica prévia. Sinais/sintomas agudos (dor torácica, tontura, síncope) → encaminhamento médico antes de qualquer esforço máximo.
+        <b class="text-slate-200">Critérios utilizados:</b> PA de repouso ≥ 200/110 mmHg ou SpO₂ &lt; 90% → teste contraindicado; 160–199/100–109 mmHg, SpO₂ 90–94% ou glicose fora de 70–300 mg/dL → liberação médica prévia. Sinais/sintomas agudos (dor torácica, tontura, síncope) → encaminhamento médico antes de qualquer esforço máximo.
       </div>
     </div>
   </div>
@@ -165,6 +169,11 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <p class="text-sm text-slate-400 mt-1">Estágios de <b class="text-slate-200">2 min</b> · <b class="text-slate-200">+1 km/h</b> por estágio · inclinação fixa <b class="text-slate-200">1%</b> · até exaustão voluntária (ideal: 8–12 min).</p>
     </div>
     <span class="chip bg-lime/10 text-lime border border-lime/30">Protocolo 2 min · 1 km/h · 1%</span>
+  </div>
+
+  <div id="restRefCard" class="card rounded-2xl p-4 fadein">
+    <div class="text-[11px] font-bold text-slate-400 mb-1.5">Referência de repouso (Triagem)</div>
+    <div id="restRefBody" class="text-xs text-slate-300"></div>
   </div>
 
   <div class="grid lg:grid-cols-3 gap-4">
@@ -259,6 +268,9 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="resGrid"></div>
 
+        <!-- Resposta hemodinâmica -->
+        <div id="hemoCard" class="rounded-xl border border-line bg-ink p-4 text-xs hidden"></div>
+
         <!-- Análise VT/RCP -->
         <div class="grid md:grid-cols-3 gap-3" id="vtCards"></div>
 
@@ -293,6 +305,15 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       </ol>
       <div class="rounded-xl bg-ink border border-line p-3 space-y-1.5 text-xs num" id="tteTargets"></div>
       <div class="text-[11px] text-slate-500 leading-relaxed">O tlim calibra a prescrição: as repetições de VO₂máx usam <b class="text-slate-300">50–60% do tlim</b> como duração de cada repetição.</div>
+      <h3 class="text-sm font-bold pt-2">Vitais antes do teste</h3>
+      <div class="grid grid-cols-3 gap-2">
+        <label class="block text-[10px] text-slate-400">PA
+          <input id="ttePasAntes" type="text" placeholder="120/80" class="num mt-1 w-full bg-ink border border-line rounded-lg px-2 py-2 text-xs focus:border-lime outline-none"></label>
+        <label class="block text-[10px] text-slate-400">FC
+          <input id="tteFcAntes" type="number" placeholder="70" class="num mt-1 w-full bg-ink border border-line rounded-lg px-2 py-2 text-xs focus:border-lime outline-none"></label>
+        <label class="block text-[10px] text-slate-400">SpO₂
+          <input id="tteSpo2Antes" type="number" placeholder="98" class="num mt-1 w-full bg-ink border border-line rounded-lg px-2 py-2 text-xs focus:border-lime outline-none"></label>
+      </div>
     </div>
     <div class="lg:col-span-2 card rounded-2xl p-6 fadein">
       <div class="text-center space-y-4">
@@ -410,14 +431,15 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 <script>
 /* ================= ESTADO ================= */
 const LS_KEY='runlab_state_v2';
-let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',limits:{},symp:{}},test:null,tte:null,plan:{freq:3,goal:'cond',phase:'base'}};
-try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',limits:{},symp:{}},s.screen||{})});}catch(e){}
+let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},plan:{freq:3,goal:'cond',phase:'base'}};
+try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})});}catch(e){}
 const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
 const $=q=>document.querySelector(q);
 
 /* ================= TABELA METs ================= */
 /* vo2At() vem de assets/calc.js (compartilhado com os testes em tests/) */
 const METS_TBL=[[4,3,10.5],[5,4,14],[6,5,17.5],[7,6,21],[8,8,28],[9,9,31.5],[10,10,35],[11,11,38.5]];
+for(let v=12;v<=16;v++){const vo=vo2At(v);METS_TBL.push([v,+(vo/3.5).toFixed(1),vo]);}
 $('#metTable').innerHTML=METS_TBL.map(r=>`<tr><td class="py-1">${r[0]}</td><td>${r[1]}</td><td>${r[2].toFixed(1)}</td></tr>`).join('');
 
 /* ================= TABS ================= */
@@ -433,7 +455,7 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>showTab(b.dataset
 document.querySelectorAll('.goto').forEach(b=>b.onclick=()=>showTab(b.dataset.goto));
 
 /* ================= PERFIL ================= */
-const pFields={pName:'name',pAge:'age',pSex:'sex',pHrMax:'hrMax',pLevel:'level',pGoal:'goal'};
+const pFields={pName:'name',pAge:'age',pSex:'sex',pHeight:'height',pLevel:'level',pGoal:'goal'};
 Object.entries(pFields).forEach(([id,key])=>{const el=$('#'+id);el.value=state.profile[key]??el.value;
   el.addEventListener('input',()=>{state.profile[key]=el.value;save();});});
 const hrMaxUsed=()=>computeHrMax(state.profile.hrMax,state.profile.age);
@@ -488,6 +510,7 @@ function recSpeedCalc(){
 }
 function renderScreen(){
   const pas=+state.screen.pas,pad=+state.screen.pad,fc=+state.screen.fc;
+  const spo2Info=classifySpo2(state.screen.spo2),glicoseInfo=classifyGlicose(state.screen.glicose);
   let h='';
   if(pas&&pad){const[c,col]=bpInfo(pas,pad);h+=`<div><span class="text-slate-500">PA:</span> <span class="num text-white">${pas}/${pad}</span> — <span class="${col} font-bold">${c}</span></div>`;}
   else h+=`<div class="text-slate-500">PA: não registrada</div>`;
@@ -495,18 +518,24 @@ function renderScreen(){
     let col=fc>100?'text-amber-300':'text-lime';
     h+=`<div><span class="text-slate-500">FC repouso:</span> <span class="num text-white">${fc} bpm</span> — <span class="${col} font-bold">${c}</span></div>`;}
   else h+=`<div class="text-slate-500">FC repouso: não registrada</div>`;
+  const spo2Col=spo2Info.level==='contraindicado'?'text-rose-300':spo2Info.level==='ressalva'?'text-amber-300':'text-lime';
+  h+=`<div><span class="text-slate-500">SpO₂:</span> <span class="num text-white">${state.screen.spo2?state.screen.spo2+'%':'—'}</span> — <span class="${spo2Col} font-bold">${spo2Info.label}</span></div>`;
+  const glicoseCol=glicoseInfo.level==='ressalva'?'text-amber-300':'text-lime';
+  h+=`<div><span class="text-slate-500">Glicose:</span> <span class="num text-white">${state.screen.glicose?state.screen.glicose+' mg/dL':'—'}</span> — <span class="${glicoseCol} font-bold">${glicoseInfo.label}</span></div>`;
   $('#restAnalysis').innerHTML=h;
 
   // parecer
   const symp=state.screen.symp,lim=state.screen.limits;
   const danger=!!(symp['Dor torácica']||symp['Episódio prévio de síncope']||symp['Dispneia desproporcional']);
   let verdict,style,note;
-  if((pas>=200||pad>=110)||danger){
+  if((pas>=200||pad>=110)||danger||spo2Info.level==='contraindicado'){
     verdict='TESTE CONTRAINDICADO';style='border-rose-500/50 bg-rose-500/10 text-rose-300';
-    note='PA ≥ 200/110 mmHg ou sinais/sintomas de alerta. Encaminhe para avaliação médica antes de qualquer teste de esforço.';
-  }else if((pas>=160||pad>=100)||lim.cardio||lim.hip){
+    note='PA ≥ 200/110 mmHg, SpO₂ < 90% ou sinais/sintomas de alerta. Encaminhe para avaliação médica antes de qualquer teste de esforço.';
+  }else if((pas>=160||pad>=100)||lim.cardio||lim.hip||spo2Info.level==='ressalva'||glicoseInfo.level==='ressalva'){
     verdict='LIBERADO COM RESSALVAS';style='border-amber-400/50 bg-amber-400/10 text-amber-300';
-    note='Requer liberação médica prévia e supervisão durante o teste. Considere teste submáximo.';
+    note='Requer liberação médica prévia e supervisão durante o teste. Considere teste submáximo.'
+      +(spo2Info.level==='ressalva'?' '+spo2Info.label+'.':'')
+      +(glicoseInfo.level==='ressalva'?' '+glicoseInfo.label+'.':'');
   }else{
     verdict='LIBERADO PARA O TESTE';style='border-lime/50 bg-lime/10 text-lime';
     note='Sem contraindicações aparentes. Mantenha monitoramento de sinais e sintomas durante o esforço.';
@@ -521,7 +550,7 @@ function renderScreen(){
   rn+='. Objetivo: exaustão entre 8–12 min.';
   $('#recSpeedNote').textContent=rn;
 }
-['sPas','sPad','sFc'].forEach((id,k)=>{const key=['pas','pad','fc'][k];
+['sPas','sPad','sFc','sSpo2','sGlicose'].forEach((id,k)=>{const key=['pas','pad','fc','spo2','glicose'][k];
   $('#'+id).value=state.screen[key];
   $('#'+id).addEventListener('input',e=>{state.screen[key]=e.target.value;save();renderScreen();});});
 $('#btnApplySpeed').onclick=()=>{$('#tStart').value=recSpeedCalc();showTab('teste');};
@@ -533,10 +562,19 @@ let tmr={running:false,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:
 const curSpeed=()=>(+$('#tStart').value)+tmr.stage;
 const fmtMS=s=>{const m=Math.floor(s/60),r=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0');};
 
+function renderRestRef(){
+  const s=state.screen;
+  if(!s.pas&&!s.fc&&!s.spo2){$('#restRefBody').innerHTML='<span class="text-slate-500">Triagem não registrada ainda.</span>';return;}
+  $('#restRefBody').innerHTML=`
+    <span class="mr-4">PA: <b class="text-white num">${s.pas&&s.pad?s.pas+'/'+s.pad:'—'}</b></span>
+    <span class="mr-4">FC: <b class="text-white num">${s.fc||'—'}</b> bpm</span>
+    <span>SpO₂: <b class="text-white num">${s.spo2?s.spo2+'%':'—'}</b></span>`;
+}
 function renderTestView(){
   const t=state.test;
   $('#runArea').classList.toggle('hidden',!!t);
   $('#resultArea').classList.toggle('hidden',!t);
+  renderRestRef();
   if(t)renderResults();
 }
 function updTimerUI(){
@@ -656,6 +694,17 @@ function renderResults(){
     <div class="num text-xl font-bold text-white mt-1">${m[1]}</div>
     <div class="text-[10px] text-slate-500 mt-0.5">${m[2]}</div></div>`).join('');
 
+  const restFc=+state.screen.fc;
+  const peakStage=[...t.stages].reverse().find(s=>s.hr);
+  const peakFc=peakStage?peakStage.hr:null;
+  if(restFc&&peakFc){
+    const delta=peakFc-restFc;
+    $('#hemoCard').classList.remove('hidden');
+    $('#hemoCard').innerHTML=`<b class="text-slate-200">Resposta Hemodinâmica:</b> <span class="num">FC repouso ${restFc} bpm → FC pico ${peakFc} bpm (Δ ${delta>=0?'+':''}${delta} bpm)</span>`;
+  }else{
+    $('#hemoCard').classList.add('hidden');
+  }
+
   const d=diagnose(t.vo2max);
   const sexL=state.profile.sex==='f'?'Feminino':'Masculino';
   $('#diagCard').innerHTML=`
@@ -734,8 +783,13 @@ function renderTte(){
     ['90% vVO₂max',(v*0.9).toFixed(1)+' km/h',pace(v*0.9),'opção conservadora'],
     ['120% vVO₂max',(v*1.2).toFixed(1)+' km/h',pace(v*1.2),'muito intenso · ref. ≈ 3 min']]
   .map(r=>`<div class="flex justify-between gap-2"><span class="text-slate-400">${r[0]}</span><span class="text-white">${r[1]} <span class="text-slate-500">(${r[2]}/km)</span></span><span class="text-slate-500 hidden lg:inline">${r[3]}</span></div>`).join('');
+  $('#ttePasAntes').value=state.tteVitals.pre.pa||(state.screen.pas&&state.screen.pad?state.screen.pas+'/'+state.screen.pad:'');
+  $('#tteFcAntes').value=state.tteVitals.pre.fc||state.screen.fc||'';
+  $('#tteSpo2Antes').value=state.tteVitals.pre.spo2||state.screen.spo2||'';
   if(state.tte)showTteResult(state.tte.sec,false);
 }
+[['ttePasAntes','pa'],['tteFcAntes','fc'],['tteSpo2Antes','spo2']].forEach(([id,key])=>{
+  $('#'+id).addEventListener('input',e=>{state.tteVitals.pre[key]=e.target.value;save();});});
 function tteLoop(ts){if(!tte.running)return;
   if(tte.last==null)tte.last=ts;
   tte.ms+=ts-tte.last;tte.last=ts;
@@ -751,19 +805,39 @@ $('#btnTteStart').onclick=()=>{if(tte.running)return;
 $('#btnTteStop').onclick=()=>{tte.running=false;cancelAnimationFrame(tte.raf);
   $('#btnTteStart').classList.remove('hidden');$('#btnTteStop').classList.add('hidden');
   const sec=Math.floor(tte.ms/1000);
-  state.tte={sec,date:new Date().toLocaleDateString('pt-BR'),v:state.test.vPeak};save();
+  const preVitals={pa:$('#ttePasAntes').value,fc:$('#tteFcAntes').value,spo2:$('#tteSpo2Antes').value};
+  state.tte={sec,date:new Date().toLocaleDateString('pt-BR'),v:state.test.vPeak,
+    preVitals,postVitals:{pa:'',fc:'',spo2:''}};save();
   showTteResult(sec,true);beep(3,true);};
 $('#btnTteReset').onclick=()=>{tte.running=false;cancelAnimationFrame(tte.raf);tte.ms=0;
   $('#tteClock').textContent='00:00';$('#tteBar').style.width='0%';$('#tteDelta').textContent='Δ —';};
 /* tteClass() vem de assets/calc.js */
 function showTteResult(sec,fresh){
   const[cls,col]=tteClass(sec);
+  const pre=state.tte.preVitals||{},post=state.tte.postVitals||{};
   $('#tteResult').classList.remove('hidden');
   $('#tteResult').innerHTML=`<div class="flex flex-wrap items-center gap-3 justify-center">
     <span class="text-slate-400 text-xs">${fresh?'Resultado registrado':'Último resultado'} (${state.tte.date}):</span>
     <span class="num text-2xl font-bold text-white">${fmtMS(sec)}</span>
     <span class="chip border border-line ${col}">${cls}</span></div>
-    <p class="text-[11px] text-slate-500 mt-2">Prescrição derivada: repetições de VO₂máx de <b class="text-slate-300">${fmtMS(Math.round(sec*0.55))}</b> (55% do tlim) a ~${(state.tte.v||state.test.vPeak).toFixed(1)} km/h, com pausa igual em trote leve.</p>`;}
+    <p class="text-[11px] text-slate-500 mt-2">Prescrição derivada: repetições de VO₂máx de <b class="text-slate-300">${fmtMS(Math.round(sec*0.55))}</b> (55% do tlim) a ~${(state.tte.v||state.test.vPeak).toFixed(1)} km/h, com pausa igual em trote leve.</p>
+    <div class="grid sm:grid-cols-2 gap-3 mt-4 text-left">
+      <div class="rounded-lg bg-panel border border-line p-3">
+        <div class="text-[10px] font-bold text-slate-400 mb-1">Vitais antes</div>
+        <div class="text-xs num text-slate-200">PA ${pre.pa||'—'} · FC ${pre.fc||'—'} bpm · SpO₂ ${pre.spo2?pre.spo2+'%':'—'}</div>
+      </div>
+      <div class="rounded-lg bg-panel border border-line p-3">
+        <div class="text-[10px] font-bold text-slate-400 mb-1">Vitais depois</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <input id="ttePasDepois" type="text" placeholder="PA" value="${post.pa||''}" class="num bg-ink border border-line rounded px-1.5 py-1 text-xs focus:border-lime outline-none">
+          <input id="tteFcDepois" type="number" placeholder="FC" value="${post.fc||''}" class="num bg-ink border border-line rounded px-1.5 py-1 text-xs focus:border-lime outline-none">
+          <input id="tteSpo2Depois" type="number" placeholder="SpO₂" value="${post.spo2||''}" class="num bg-ink border border-line rounded px-1.5 py-1 text-xs focus:border-lime outline-none">
+        </div>
+      </div>
+    </div>`;
+  [['ttePasDepois','pa'],['tteFcDepois','fc'],['tteSpo2Depois','spo2']].forEach(([id,key])=>{
+    $('#'+id).addEventListener('input',e=>{state.tte.postVitals[key]=e.target.value;save();});});
+}
 
 /* ================= PLANO ================= */
 const DAYS_BY_N={2:['Ter','Sáb'],3:['Ter','Qui','Dom'],4:['Seg','Ter','Qui','Sáb'],5:['Seg','Ter','Qui','Sex','Dom'],6:['Seg','Ter','Qua','Qui','Sex','Sáb']};
