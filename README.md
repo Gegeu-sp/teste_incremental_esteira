@@ -25,7 +25,28 @@ Depois acesse `http://localhost:8000/`.
 ## Publicar
 
 Como é um site 100% estático, publique a raiz do repositório em qualquer
-hospedagem estática (ex.: GitHub Pages) — o ponto de entrada é `index.html`.
+hospedagem estática (ex.: GitHub Pages, Firebase Hosting) — o ponto de
+entrada é `index.html`.
+
+### Firebase Hosting
+
+O repositório já traz `firebase.json` configurado (raiz do repo como pasta
+pública, ignorando `specs/`, `tests/`, `.specify/` etc.). Passos (rodar
+localmente — o login do Firebase é interativo, via navegador):
+
+```bash
+npm install -g firebase-tools   # se ainda não tiver o CLI
+firebase login
+firebase use --add              # escolha/crie o projeto no Firebase Console
+                                 # e associe um alias (ex.: "default")
+firebase deploy --only hosting
+```
+
+Se ainda não existe um projeto, crie um em
+[console.firebase.google.com](https://console.firebase.google.com/) antes do
+`firebase use --add`. O arquivo `.firebaserc` (gerado pelo `use --add`) é
+local por padrão (está no `.gitignore`) — remova a entrada do `.gitignore`
+se quiser versionar o projeto padrão do time.
 
 ## Estrutura
 
