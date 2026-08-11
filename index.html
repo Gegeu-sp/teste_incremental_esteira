@@ -35,6 +35,13 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
   .ckbox.danger:has(input:checked){border-color:#f43f5e;background:rgba(244,63,94,.08);}
   ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#243144;border-radius:8px}
   @media print{.no-print{display:none!important}body{background:#fff;color:#111}.card{border-color:#ccc;background:#fff}}
+  #reportView h2{font-size:1rem;font-weight:800;margin-top:1.25rem;margin-bottom:.5rem;}
+  #reportView table{width:100%;font-size:.75rem;border-collapse:collapse;}
+  #reportView th,#reportView td{border:1px solid #ccc;padding:.35rem .5rem;text-align:left;}
+  @media print{
+    body.report-mode main>section.tab-panel,body.report-mode>footer{display:none!important}
+    body.report-mode #reportView{display:block!important}
+  }
 </style>
 </head>
 <body class="text-slate-200 min-h-screen">
@@ -79,8 +86,8 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         <label class="block text-xs text-slate-400">Sexo
           <select id="pSex" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="m">Masculino</option><option value="f">Feminino</option></select></label>
-        <label class="block text-xs text-slate-400">FC máxima medida <span class="text-slate-500">(opcional — senão usa 208 − 0,7×idade)</span>
-          <input id="pHrMax" type="number" min="100" max="230" placeholder="bpm" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">Altura (cm)
+          <input id="pHeight" type="number" min="100" max="230" placeholder="170" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Nível de treino
           <select id="pLevel" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="ini">Iniciante</option><option value="int" selected>Intermediário</option><option value="ava">Avançado</option></select></label>
@@ -122,6 +129,10 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
           <input id="sPad" type="number" min="30" max="160" placeholder="80" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">FC (bpm)
           <input id="sFc" type="number" min="25" max="220" placeholder="70" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">SpO₂ (%)
+          <input id="sSpo2" type="number" min="50" max="100" placeholder="98" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400 col-span-2">Glicose (mg/dL) <span class="text-slate-500">(opcional)</span>
+          <input id="sGlicose" type="number" min="30" max="600" placeholder="90" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-2.5 py-2.5 text-sm focus:border-lime outline-none"></label>
       </div>
       <div id="restAnalysis" class="rounded-xl border border-line bg-ink p-3 text-xs space-y-1.5"></div>
 
@@ -151,7 +162,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         </div>
       </div>
       <div class="card rounded-2xl p-5 text-[11px] text-slate-400 leading-relaxed">
-        <b class="text-slate-200">Critérios utilizados:</b> PA de repouso ≥ 200/110 mmHg → teste contraindicado; 160–199/100–109 mmHg → liberação médica prévia. Sinais/sintomas agudos (dor torácica, tontura, síncope) → encaminhamento médico antes de qualquer esforço máximo.
+        <b class="text-slate-200">Critérios utilizados:</b> PA de repouso ≥ 200/110 mmHg ou SpO₂ &lt; 90% → teste contraindicado; 160–199/100–109 mmHg, SpO₂ 90–94% ou glicose fora de 70–300 mg/dL → liberação médica prévia. Sinais/sintomas agudos (dor torácica, tontura, síncope) → encaminhamento médico antes de qualquer esforço máximo.
       </div>
     </div>
   </div>
@@ -165,6 +176,11 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <p class="text-sm text-slate-400 mt-1">Estágios de <b class="text-slate-200">2 min</b> · <b class="text-slate-200">+1 km/h</b> por estágio · inclinação fixa <b class="text-slate-200">1%</b> · até exaustão voluntária (ideal: 8–12 min).</p>
     </div>
     <span class="chip bg-lime/10 text-lime border border-lime/30">Protocolo 2 min · 1 km/h · 1%</span>
+  </div>
+
+  <div id="restRefCard" class="card rounded-2xl p-4 fadein">
+    <div class="text-[11px] font-bold text-slate-400 mb-1.5">Referência de repouso (Triagem)</div>
+    <div id="restRefBody" class="text-xs text-slate-300"></div>
   </div>
 
   <div class="grid lg:grid-cols-3 gap-4">
@@ -259,6 +275,9 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="resGrid"></div>
 
+        <!-- Resposta hemodinâmica -->
+        <div id="hemoCard" class="rounded-xl border border-line bg-ink p-4 text-xs hidden"></div>
+
         <!-- Análise VT/RCP -->
         <div class="grid md:grid-cols-3 gap-3" id="vtCards"></div>
 
@@ -293,6 +312,15 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       </ol>
       <div class="rounded-xl bg-ink border border-line p-3 space-y-1.5 text-xs num" id="tteTargets"></div>
       <div class="text-[11px] text-slate-500 leading-relaxed">O tlim calibra a prescrição: as repetições de VO₂máx usam <b class="text-slate-300">50–60% do tlim</b> como duração de cada repetição.</div>
+      <h3 class="text-sm font-bold pt-2">Vitais antes do teste</h3>
+      <div class="grid grid-cols-3 gap-2">
+        <label class="block text-[10px] text-slate-400">PA
+          <input id="ttePasAntes" type="text" placeholder="120/80" class="num mt-1 w-full bg-ink border border-line rounded-lg px-2 py-2 text-xs focus:border-lime outline-none"></label>
+        <label class="block text-[10px] text-slate-400">FC
+          <input id="tteFcAntes" type="number" placeholder="70" class="num mt-1 w-full bg-ink border border-line rounded-lg px-2 py-2 text-xs focus:border-lime outline-none"></label>
+        <label class="block text-[10px] text-slate-400">SpO₂
+          <input id="tteSpo2Antes" type="number" placeholder="98" class="num mt-1 w-full bg-ink border border-line rounded-lg px-2 py-2 text-xs focus:border-lime outline-none"></label>
+      </div>
     </div>
     <div class="lg:col-span-2 card rounded-2xl p-6 fadein">
       <div class="text-center space-y-4">
@@ -335,8 +363,33 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
     </div>
     <div class="grid md:grid-cols-3 gap-4 text-xs">
       <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-lime">VT1 (limiar aeróbico)</b><br><span class="text-slate-400">Última intensidade em que ainda se fala em frases completas (Talk Test). Base aeróbia e queima de gordura.</span></div>
-      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-orange-300">RCP / VT2 (limiar anaeróbico)</b><br><span class="text-slate-400">Ponto de compensação respiratória: a fala torna-se impossível e a ventilação dispara. Ritmos acima não são sustentáveis.</span></div>
+      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-orange-300">RCP / VT2 (limiar anaeróbico)</b><br><span class="text-slate-400">Ponto de compensação respiratória: intensidade até onde o sistema respiratório consegue corrigir a acidose metabólica (H⁺) por alcalose respiratória. A partir daí a acidose torna-se severa e não é mais corrigida — a fala torna-se impossível, a ventilação dispara e a fadiga muscular se instala. Ritmos acima não são sustentáveis.</span></div>
       <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-sky-300">Re-teste periódico</b><br><span class="text-slate-400">Os limiares deslocam-se com o treino. Reavalie e atualize as zonas a cada 6–12 semanas.</span></div>
+    </div>
+
+    <!-- Diagnóstico e interpretação (Fase 2A) -->
+    <div id="zoneDiagCard" class="rounded-2xl border border-lime/30 bg-lime/5 p-5"></div>
+
+    <div class="grid md:grid-cols-2 gap-4 text-xs">
+      <div class="card rounded-2xl p-5 leading-relaxed">
+        <b class="text-slate-200">Comportamento da Pressão Arterial e Frequência Cardíaca no Treinamento</b>
+        <p class="text-slate-400 mt-2">Estudos comparando HIIT a ~90% do VO₂máx com treino contínuo de intensidade moderada não encontraram diferença significativa na pressão arterial ao final do esforço. Já a frequência cardíaca costuma variar mais entre métodos — por exemplo, é maior no SIT do que no HIIT tradicional. Na prática, o que importa é o monitoramento individual: acompanhe FC e RPE por estágio/sessão (já feito neste app) em vez de assumir um padrão fixo para todo aluno.</p>
+      </div>
+      <div class="card rounded-2xl p-5 leading-relaxed">
+        <b class="text-slate-200">Testes para Avaliar o VO₂máx <span class="text-slate-500 font-normal">(referência)</span></b>
+        <p class="text-slate-400 mt-2">Este app usa o protocolo de teste incremental em esteira (2 min · 1 km/h · 1%). Outros protocolos indiretos existentes na literatura:</p>
+        <ul class="text-slate-400 mt-2 space-y-1 list-disc list-inside">
+          <li><b class="text-slate-300">Balke (esteira)</b>: 5,4 km/h constante, +1% de inclinação a cada 1 min até exaustão.</li>
+          <li><b class="text-slate-300">Balke (bicicleta)</b>: +25 W a cada estágio de 2 min até exaustão.</li>
+          <li><b class="text-slate-300">Cooper (12 min)</b>: maior distância percorrida em 12 min.</li>
+          <li><b class="text-slate-300">Caminhada de 6 min</b>: maior distância percorrida em corredor demarcado.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-5 text-xs leading-relaxed">
+      <b class="text-slate-200">Importância da Avaliação Diagnóstica Clínica e Funcional</b>
+      <p class="text-slate-400 mt-2">Diagnóstico é <b class="text-slate-300">interpretar, analisar e julgar</b> um parâmetro — não apenas ler um número. As zonas e o plano gerados aqui são um ponto de partida; a leitura clínica do profissional sobre o contexto do aluno (histórico, limitações, resposta ao treino) continua sendo o que direciona a prescrição final.</p>
     </div>
   </div>
 </section>
@@ -364,6 +417,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
     </div>
     <div class="flex items-center gap-3 mt-5">
       <button id="btnPrint" class="px-4 py-2.5 rounded-xl bg-lime text-ink text-sm font-bold hover:brightness-110 transition">🖨 Imprimir / salvar plano</button>
+      <button id="btnReport" class="px-4 py-2.5 rounded-xl border border-lime/50 text-lime text-sm font-bold hover:bg-lime/10 transition">📄 Gerar Relatório Completo (PDF)</button>
       <span class="text-[11px] text-slate-500" id="planMeta"></span>
     </div>
   </div>
@@ -400,6 +454,8 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
     </div>
   </div>
 </section>
+
+<div id="reportView" class="hidden"></div>
 </main>
 
 <footer class="border-t border-line py-6 text-center text-[11px] text-slate-500">
@@ -410,14 +466,15 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 <script>
 /* ================= ESTADO ================= */
 const LS_KEY='runlab_state_v2';
-let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',limits:{},symp:{}},test:null,tte:null,plan:{freq:3,goal:'cond',phase:'base'}};
-try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',limits:{},symp:{}},s.screen||{})});}catch(e){}
+let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},plan:{freq:3,goal:'cond',phase:'base'}};
+try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})});}catch(e){}
 const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
 const $=q=>document.querySelector(q);
 
 /* ================= TABELA METs ================= */
 /* vo2At() vem de assets/calc.js (compartilhado com os testes em tests/) */
 const METS_TBL=[[4,3,10.5],[5,4,14],[6,5,17.5],[7,6,21],[8,8,28],[9,9,31.5],[10,10,35],[11,11,38.5]];
+for(let v=12;v<=16;v++){const vo=vo2At(v);METS_TBL.push([v,+(vo/3.5).toFixed(1),vo]);}
 $('#metTable').innerHTML=METS_TBL.map(r=>`<tr><td class="py-1">${r[0]}</td><td>${r[1]}</td><td>${r[2].toFixed(1)}</td></tr>`).join('');
 
 /* ================= TABS ================= */
@@ -433,7 +490,7 @@ document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>showTab(b.dataset
 document.querySelectorAll('.goto').forEach(b=>b.onclick=()=>showTab(b.dataset.goto));
 
 /* ================= PERFIL ================= */
-const pFields={pName:'name',pAge:'age',pSex:'sex',pHrMax:'hrMax',pLevel:'level',pGoal:'goal'};
+const pFields={pName:'name',pAge:'age',pSex:'sex',pHeight:'height',pLevel:'level',pGoal:'goal'};
 Object.entries(pFields).forEach(([id,key])=>{const el=$('#'+id);el.value=state.profile[key]??el.value;
   el.addEventListener('input',()=>{state.profile[key]=el.value;save();});});
 const hrMaxUsed=()=>computeHrMax(state.profile.hrMax,state.profile.age);
@@ -488,6 +545,7 @@ function recSpeedCalc(){
 }
 function renderScreen(){
   const pas=+state.screen.pas,pad=+state.screen.pad,fc=+state.screen.fc;
+  const spo2Info=classifySpo2(state.screen.spo2),glicoseInfo=classifyGlicose(state.screen.glicose);
   let h='';
   if(pas&&pad){const[c,col]=bpInfo(pas,pad);h+=`<div><span class="text-slate-500">PA:</span> <span class="num text-white">${pas}/${pad}</span> — <span class="${col} font-bold">${c}</span></div>`;}
   else h+=`<div class="text-slate-500">PA: não registrada</div>`;
@@ -495,18 +553,24 @@ function renderScreen(){
     let col=fc>100?'text-amber-300':'text-lime';
     h+=`<div><span class="text-slate-500">FC repouso:</span> <span class="num text-white">${fc} bpm</span> — <span class="${col} font-bold">${c}</span></div>`;}
   else h+=`<div class="text-slate-500">FC repouso: não registrada</div>`;
+  const spo2Col=spo2Info.level==='contraindicado'?'text-rose-300':spo2Info.level==='ressalva'?'text-amber-300':'text-lime';
+  h+=`<div><span class="text-slate-500">SpO₂:</span> <span class="num text-white">${state.screen.spo2?state.screen.spo2+'%':'—'}</span> — <span class="${spo2Col} font-bold">${spo2Info.label}</span></div>`;
+  const glicoseCol=glicoseInfo.level==='ressalva'?'text-amber-300':'text-lime';
+  h+=`<div><span class="text-slate-500">Glicose:</span> <span class="num text-white">${state.screen.glicose?state.screen.glicose+' mg/dL':'—'}</span> — <span class="${glicoseCol} font-bold">${glicoseInfo.label}</span></div>`;
   $('#restAnalysis').innerHTML=h;
 
   // parecer
   const symp=state.screen.symp,lim=state.screen.limits;
   const danger=!!(symp['Dor torácica']||symp['Episódio prévio de síncope']||symp['Dispneia desproporcional']);
   let verdict,style,note;
-  if((pas>=200||pad>=110)||danger){
+  if((pas>=200||pad>=110)||danger||spo2Info.level==='contraindicado'){
     verdict='TESTE CONTRAINDICADO';style='border-rose-500/50 bg-rose-500/10 text-rose-300';
-    note='PA ≥ 200/110 mmHg ou sinais/sintomas de alerta. Encaminhe para avaliação médica antes de qualquer teste de esforço.';
-  }else if((pas>=160||pad>=100)||lim.cardio||lim.hip){
+    note='PA ≥ 200/110 mmHg, SpO₂ < 90% ou sinais/sintomas de alerta. Encaminhe para avaliação médica antes de qualquer teste de esforço.';
+  }else if((pas>=160||pad>=100)||lim.cardio||lim.hip||spo2Info.level==='ressalva'||glicoseInfo.level==='ressalva'){
     verdict='LIBERADO COM RESSALVAS';style='border-amber-400/50 bg-amber-400/10 text-amber-300';
-    note='Requer liberação médica prévia e supervisão durante o teste. Considere teste submáximo.';
+    note='Requer liberação médica prévia e supervisão durante o teste. Considere teste submáximo.'
+      +(spo2Info.level==='ressalva'?' '+spo2Info.label+'.':'')
+      +(glicoseInfo.level==='ressalva'?' '+glicoseInfo.label+'.':'');
   }else{
     verdict='LIBERADO PARA O TESTE';style='border-lime/50 bg-lime/10 text-lime';
     note='Sem contraindicações aparentes. Mantenha monitoramento de sinais e sintomas durante o esforço.';
@@ -521,7 +585,7 @@ function renderScreen(){
   rn+='. Objetivo: exaustão entre 8–12 min.';
   $('#recSpeedNote').textContent=rn;
 }
-['sPas','sPad','sFc'].forEach((id,k)=>{const key=['pas','pad','fc'][k];
+['sPas','sPad','sFc','sSpo2','sGlicose'].forEach((id,k)=>{const key=['pas','pad','fc','spo2','glicose'][k];
   $('#'+id).value=state.screen[key];
   $('#'+id).addEventListener('input',e=>{state.screen[key]=e.target.value;save();renderScreen();});});
 $('#btnApplySpeed').onclick=()=>{$('#tStart').value=recSpeedCalc();showTab('teste');};
@@ -533,10 +597,19 @@ let tmr={running:false,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:
 const curSpeed=()=>(+$('#tStart').value)+tmr.stage;
 const fmtMS=s=>{const m=Math.floor(s/60),r=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0');};
 
+function renderRestRef(){
+  const s=state.screen;
+  if(!s.pas&&!s.fc&&!s.spo2){$('#restRefBody').innerHTML='<span class="text-slate-500">Triagem não registrada ainda.</span>';return;}
+  $('#restRefBody').innerHTML=`
+    <span class="mr-4">PA: <b class="text-white num">${s.pas&&s.pad?s.pas+'/'+s.pad:'—'}</b></span>
+    <span class="mr-4">FC: <b class="text-white num">${s.fc||'—'}</b> bpm</span>
+    <span>SpO₂: <b class="text-white num">${s.spo2?s.spo2+'%':'—'}</b></span>`;
+}
 function renderTestView(){
   const t=state.test;
   $('#runArea').classList.toggle('hidden',!!t);
   $('#resultArea').classList.toggle('hidden',!t);
+  renderRestRef();
   if(t)renderResults();
 }
 function updTimerUI(){
@@ -656,6 +729,17 @@ function renderResults(){
     <div class="num text-xl font-bold text-white mt-1">${m[1]}</div>
     <div class="text-[10px] text-slate-500 mt-0.5">${m[2]}</div></div>`).join('');
 
+  const restFc=+state.screen.fc;
+  const peakStage=[...t.stages].reverse().find(s=>s.hr);
+  const peakFc=peakStage?peakStage.hr:null;
+  if(restFc&&peakFc){
+    const delta=peakFc-restFc;
+    $('#hemoCard').classList.remove('hidden');
+    $('#hemoCard').innerHTML=`<b class="text-slate-200">Resposta Hemodinâmica:</b> <span class="num">FC repouso ${restFc} bpm → FC pico ${peakFc} bpm (Δ ${delta>=0?'+':''}${delta} bpm)</span>`;
+  }else{
+    $('#hemoCard').classList.add('hidden');
+  }
+
   const d=diagnose(t.vo2max);
   const sexL=state.profile.sex==='f'?'Feminino':'Masculino';
   $('#diagCard').innerHTML=`
@@ -708,6 +792,13 @@ function renderZones(){
   $('#zonesBody').classList.toggle('hidden',!z);
   if(!z)return;
   $('#betaNote').classList.toggle('hidden',!state.screen.limits.beta);
+  const t=state.test,d=diagnose(t.vo2max),sexL=state.profile.sex==='f'?'feminino':'masculino';
+  $('#zoneDiagCard').innerHTML=`
+    <div class="flex flex-wrap items-center gap-3">
+      <h3 class="text-sm font-extrabold text-lime">Diagnóstico da Aptidão Cardiorrespiratória</h3>
+      <span class="chip border ${d.style} text-sm px-4 py-1">${d.cls}</span>
+      <span class="text-[11px] text-slate-400">VO₂máx ${t.vo2max.toFixed(1)} · ref.: média ${sexL} · ${state.profile.age} anos (${d.avg})</span>
+    </div>`;
   $('#zoneSummary').innerHTML=[['FCmáx',z.hrm+' bpm'],['FC @ VT1',z.fcVT1+' bpm'],['FC @ RCP/VT2',z.fcVT2+' bpm'],['vVO₂max',state.test.vPeak.toFixed(1)+' km/h']]
     .map(s=>`<div class="card rounded-2xl p-4 text-center"><div class="text-[10px] uppercase tracking-wider text-slate-500">${s[0]}</div><div class="num text-lg font-bold text-lime mt-1">${s[1]}</div></div>`).join('');
   $('#zonesRows').innerHTML=ZMETA.map((m,i)=>{const r=z.ranges[i];return `
@@ -734,8 +825,13 @@ function renderTte(){
     ['90% vVO₂max',(v*0.9).toFixed(1)+' km/h',pace(v*0.9),'opção conservadora'],
     ['120% vVO₂max',(v*1.2).toFixed(1)+' km/h',pace(v*1.2),'muito intenso · ref. ≈ 3 min']]
   .map(r=>`<div class="flex justify-between gap-2"><span class="text-slate-400">${r[0]}</span><span class="text-white">${r[1]} <span class="text-slate-500">(${r[2]}/km)</span></span><span class="text-slate-500 hidden lg:inline">${r[3]}</span></div>`).join('');
+  $('#ttePasAntes').value=state.tteVitals.pre.pa||(state.screen.pas&&state.screen.pad?state.screen.pas+'/'+state.screen.pad:'');
+  $('#tteFcAntes').value=state.tteVitals.pre.fc||state.screen.fc||'';
+  $('#tteSpo2Antes').value=state.tteVitals.pre.spo2||state.screen.spo2||'';
   if(state.tte)showTteResult(state.tte.sec,false);
 }
+[['ttePasAntes','pa'],['tteFcAntes','fc'],['tteSpo2Antes','spo2']].forEach(([id,key])=>{
+  $('#'+id).addEventListener('input',e=>{state.tteVitals.pre[key]=e.target.value;save();});});
 function tteLoop(ts){if(!tte.running)return;
   if(tte.last==null)tte.last=ts;
   tte.ms+=ts-tte.last;tte.last=ts;
@@ -751,19 +847,39 @@ $('#btnTteStart').onclick=()=>{if(tte.running)return;
 $('#btnTteStop').onclick=()=>{tte.running=false;cancelAnimationFrame(tte.raf);
   $('#btnTteStart').classList.remove('hidden');$('#btnTteStop').classList.add('hidden');
   const sec=Math.floor(tte.ms/1000);
-  state.tte={sec,date:new Date().toLocaleDateString('pt-BR'),v:state.test.vPeak};save();
+  const preVitals={pa:$('#ttePasAntes').value,fc:$('#tteFcAntes').value,spo2:$('#tteSpo2Antes').value};
+  state.tte={sec,date:new Date().toLocaleDateString('pt-BR'),v:state.test.vPeak,
+    preVitals,postVitals:{pa:'',fc:'',spo2:''}};save();
   showTteResult(sec,true);beep(3,true);};
 $('#btnTteReset').onclick=()=>{tte.running=false;cancelAnimationFrame(tte.raf);tte.ms=0;
   $('#tteClock').textContent='00:00';$('#tteBar').style.width='0%';$('#tteDelta').textContent='Δ —';};
 /* tteClass() vem de assets/calc.js */
 function showTteResult(sec,fresh){
   const[cls,col]=tteClass(sec);
+  const pre=state.tte.preVitals||{},post=state.tte.postVitals||{};
   $('#tteResult').classList.remove('hidden');
   $('#tteResult').innerHTML=`<div class="flex flex-wrap items-center gap-3 justify-center">
     <span class="text-slate-400 text-xs">${fresh?'Resultado registrado':'Último resultado'} (${state.tte.date}):</span>
     <span class="num text-2xl font-bold text-white">${fmtMS(sec)}</span>
     <span class="chip border border-line ${col}">${cls}</span></div>
-    <p class="text-[11px] text-slate-500 mt-2">Prescrição derivada: repetições de VO₂máx de <b class="text-slate-300">${fmtMS(Math.round(sec*0.55))}</b> (55% do tlim) a ~${(state.tte.v||state.test.vPeak).toFixed(1)} km/h, com pausa igual em trote leve.</p>`;}
+    <p class="text-[11px] text-slate-500 mt-2">Prescrição derivada: repetições de VO₂máx de <b class="text-slate-300">${fmtMS(Math.round(sec*0.55))}</b> (55% do tlim) a ~${(state.tte.v||state.test.vPeak).toFixed(1)} km/h, com pausa igual em trote leve.</p>
+    <div class="grid sm:grid-cols-2 gap-3 mt-4 text-left">
+      <div class="rounded-lg bg-panel border border-line p-3">
+        <div class="text-[10px] font-bold text-slate-400 mb-1">Vitais antes</div>
+        <div class="text-xs num text-slate-200">PA ${pre.pa||'—'} · FC ${pre.fc||'—'} bpm · SpO₂ ${pre.spo2?pre.spo2+'%':'—'}</div>
+      </div>
+      <div class="rounded-lg bg-panel border border-line p-3">
+        <div class="text-[10px] font-bold text-slate-400 mb-1">Vitais depois</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <input id="ttePasDepois" type="text" placeholder="PA" value="${post.pa||''}" class="num bg-ink border border-line rounded px-1.5 py-1 text-xs focus:border-lime outline-none">
+          <input id="tteFcDepois" type="number" placeholder="FC" value="${post.fc||''}" class="num bg-ink border border-line rounded px-1.5 py-1 text-xs focus:border-lime outline-none">
+          <input id="tteSpo2Depois" type="number" placeholder="SpO₂" value="${post.spo2||''}" class="num bg-ink border border-line rounded px-1.5 py-1 text-xs focus:border-lime outline-none">
+        </div>
+      </div>
+    </div>`;
+  [['ttePasDepois','pa'],['tteFcDepois','fc'],['tteSpo2Depois','spo2']].forEach(([id,key])=>{
+    $('#'+id).addEventListener('input',e=>{state.tte.postVitals[key]=e.target.value;save();});});
+}
 
 /* ================= PLANO ================= */
 const DAYS_BY_N={2:['Ter','Sáb'],3:['Ter','Qui','Dom'],4:['Seg','Ter','Qui','Sáb'],5:['Seg','Ter','Qui','Sex','Dom'],6:['Seg','Ter','Qua','Qui','Sex','Sáb']};
@@ -780,6 +896,61 @@ function syncPlanControls(){
 document.querySelectorAll('#goalBtns .seg').forEach(b=>b.onclick=()=>{state.plan.goal=b.dataset.goal;save();syncPlanControls();renderPlan();});
 document.querySelectorAll('#phaseBtns .seg').forEach(b=>b.onclick=()=>{state.plan.phase=b.dataset.phase;save();syncPlanControls();renderPlan();});
 $('#btnPrint').onclick=()=>window.print();
+
+/* ================= RELATÓRIO COMPLETO (Fase 2B) ================= */
+function renderReport(){
+  const p=state.profile,s=state.screen,t=state.test,tte=state.tte;
+  const levelL={ini:'Iniciante',int:'Intermediário',ava:'Avançado'}[p.level]||'—';
+  const goalL={cond:'Condicionamento geral',cardio:'Cardio pós-musculação',perf:'Performance em corrida'}[p.goal]||'—';
+  let h=`<h1 style="font-size:1.4rem;font-weight:800">Relatório RunLab</h1>
+    <p style="font-size:.75rem;color:#555">${p.name||'Aluno'} · emitido em ${new Date().toLocaleDateString('pt-BR')}</p>
+    <h2>Perfil</h2>
+    <p>Idade: ${p.age||'—'} · Sexo: ${p.sex==='f'?'Feminino':'Masculino'} · Altura: ${p.height?p.height+' cm':'—'} · Nível: ${levelL} · Objetivo: ${goalL}</p>`;
+
+  h+='<h2>Triagem</h2>';
+  if(s.pas||s.fc||s.spo2){
+    const spo2Info=classifySpo2(s.spo2),glicoseInfo=classifyGlicose(s.glicose);
+    h+=`<p>PA: ${s.pas&&s.pad?s.pas+'/'+s.pad+' mmHg':'—'} · FC repouso: ${s.fc?s.fc+' bpm':'—'} · SpO₂: ${s.spo2?s.spo2+'%':'—'} (${spo2Info.label}) · Glicose: ${s.glicose?s.glicose+' mg/dL':'—'} (${glicoseInfo.label})</p>`;
+  }else h+='<p>Triagem não registrada.</p>';
+
+  if(t){
+    const d=diagnose(t.vo2max);
+    h+=`<h2>Diagnóstico do Teste Incremental</h2>
+      <p>VO₂máx: ${t.vo2max.toFixed(1)} ml/kg·min (${d.cls}, ref. ${d.avg}) · vPico/vVO₂max: ${t.vPeak.toFixed(1)} km/h
+      · VT1: ${t.vt1V!=null?t.vt1V.toFixed(1)+' km/h':'não identificado'} · RCP/VT2: ${t.vt2V!=null?t.vt2V.toFixed(1)+' km/h':'não identificado'}</p>`;
+  }else{
+    h+='<h2>Diagnóstico</h2><p>Conclua o teste incremental para gerar o diagnóstico completo.</p>';
+  }
+
+  if(tte){
+    h+=`<h2>Teste de Tolerância</h2><p>Tempo-limite: ${fmtMS(tte.sec)} a ${(tte.v||0).toFixed(1)} km/h</p>`;
+  }
+
+  const z=zonesData();
+  if(z){
+    h+='<h2>Zonas de Treino</h2><table><thead><tr><th>Zona</th><th>FC (bpm)</th><th>Velocidade (km/h)</th><th>Objetivo</th></tr></thead><tbody>';
+    h+=ZMETA.map((m,i)=>{const r=z.ranges[i];return `<tr><td>${m.n} — ${m.name}</td><td>${r.fc}</td><td>${r.vMin.toFixed(1)} – ${r.vMax.toFixed(1)}</td><td>${m.goal}</td></tr>`;}).join('');
+    h+='</tbody></table>';
+  }
+
+  const sessions=planSessions();
+  if(sessions.length){
+    const days=DAYS_BY_N[state.plan.freq]||[];
+    h+='<h2>Plano Semanal</h2>';
+    h+=sessions.map((sess,i)=>`<p><b>${days[i]||''}:</b> ${sess.title} — ${sess.dur} (${sess.tgt.v})</p>`).join('');
+  }else{
+    h+='<h2>Plano Semanal</h2><p>Conclua o teste incremental para gerar o plano.</p>';
+  }
+
+  h+='<p style="font-size:.7rem;color:#777;margin-top:1.5rem">RunLab · Ferramenta educacional de prescrição baseada em testes — não substitui avaliação médica.</p>';
+  $('#reportView').innerHTML=h;
+}
+$('#btnReport').onclick=()=>{
+  renderReport();
+  document.body.classList.add('report-mode');
+  window.print();
+  document.body.classList.remove('report-mode');
+};
 function zTarget(i){const z=zonesData();const r=z.ranges[i];
   return{v:`${r.vMin.toFixed(1)}–${r.vMax.toFixed(1)} km/h`,pace:`${pace(r.vMax)}–${pace(r.vMin)}/km`,fc:r.fc+' bpm'};}
 function sessionCard(day,zi,title,structure,dur,extra){const c=ZCOLORS[zi];
@@ -796,26 +967,56 @@ function sessionCard(day,zi,title,structure,dur,extra){const c=ZCOLORS[zi];
 function planSessions(){
   const z=zonesData();if(!z)return[];
   const ph=state.plan.phase,n=state.plan.freq,goal=state.plan.goal;
-  const tlim=state.tte?state.tte.sec:null;
-  const repDur=Math.max(90,Math.min(300,Math.round((tlim||360)*0.55)));
-  const z1=zTarget(0),z2=zTarget(1),z3=zTarget(2),z5=zTarget(4);
+  const z1=zTarget(0),z2=zTarget(1),z3=zTarget(2);
   const vVO2=state.test.vPeak;
-  const rod=short=>({zi:1,title:'Rodagem aeróbia',dur:(short?30:(ph==='base'?45:ph==='transicao'?30:40))+' min',tgt:z2,steps:[
-    'Ritmo confortável, conversa fluida (RPE 3–4).','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']});
+  /* Método Contínuo (Z1–Z2): 50–80% VO2máx, >40min, 3–6x/semana. */
+  const rod=short=>({zi:1,title:'Método Contínuo — Rodagem',dur:(short?30:(ph==='base'?45:ph==='transicao'?30:40))+' min',tgt:z2,steps:[
+    'Ritmo confortável, conversa fluida (RPE 3–4) — 50–80% do VO₂máx.','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']});
   const rec=()=>({zi:0,title:'Recuperação ativa',dur:'25–30 min',tgt:z1,steps:[
     'Trote muito leve ou caminhada inclinada (RPE 1–2).','Objetivo: fluxo sanguíneo e recuperação — sem fadiga.']});
-  const longao=()=>({zi:1,title:'Longão',dur:(ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45)+' min',tgt:z2,steps:[
-    'Ritmo Z2 constante do início ao fim.','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']});
-  let qualidade;
-  if(ph==='base')qualidade={zi:3,title:'Fartlek leve',dur:'35–40 min',tgt:zTarget(3),steps:[
-    '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1).','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']};
-  else if(ph==='transicao')qualidade={zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
-    'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']};
-  else qualidade={zi:4,title:'Intervalos de VO₂máx',dur:'40–50 min',tgt:z5,steps:[
+  const longao=()=>({zi:1,title:'Método Contínuo — Longão',dur:(ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45)+' min',tgt:z2,steps:[
+    'Ritmo Z2 constante do início ao fim (50–80% do VO₂máx).','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']});
+  /* Fartlek (Z1–Z2): execução prolongada com alteração frequente de ritmo, 50–80% VO2máx, >40min, ~3x/semana. */
+  const fartlek=()=>({zi:3,title:'Fartlek (Z1–Z2)',dur:'35–40 min',tgt:zTarget(3),steps:[
+    '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1) — alteração frequente de ritmo, sem trilho fixo.','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']});
+  const ritmoLivre=()=>({zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
+    'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']});
+  /* Intervalado Zona 4: entre RCP e vVO2máx, volume moderado. */
+  const intervaladoZ4=()=>({zi:3,title:'Intervalado — Zona 4',dur:'35–40 min',tgt:zTarget(3),steps:[
     '10 min de aquecimento em Z2.',
-    `${ph==='especifico'?4:5} × ${fmtMS(repDur)} a ${vVO2.toFixed(1)} km/h (100% vVO₂max).`,
-    `Pausa de ${fmtMS(repDur)} em trote leve (1:1).`,'10 min de desaquecimento em Z1.','Repetições de 55% do tlim — calibradas pelo teste de tolerância.']};
-  const tempo={zi:2,title:'Tempo run (limiar)',dur:'40–45 min',tgt:z3,steps:[
+    `6 × 3 min na Zona 4 (${zTarget(3).v}), recuperação de 2 min em Z1.`,
+    '10 min de volta à calma em Z1.','Ponte entre o tempo run e o HIIT — entre o RCP e a vVO₂máx.']});
+  /* HIIT Longo no RCP (Zona 3): 4min ~85% FCmáx / próximo ao RCP, recuperação 3min ~10% abaixo do RCP. */
+  const hiitLongoRCP=()=>({zi:2,title:'HIIT Longo — no RCP (Zona 3)',dur:'35–40 min',
+    tgt:{v:`~${z.vVT2.toFixed(1)} km/h`,pace:pace(z.vVT2),fc:z.fcVT2+' bpm'},steps:[
+    '10 min de aquecimento em Z2.',
+    `5 × 4 min a ~${z.vVT2.toFixed(1)} km/h (RCP), recuperação de 3 min a ~${(z.vVT2*0.9).toFixed(1)} km/h (10% abaixo do RCP).`,
+    '10 min de volta à calma em Z1.','Protocolo de HIIT longo baseado em evidência: eleva VO₂máx e limiar anaeróbico.']});
+  /* HIIT Curto: 20s a 100% do pico, recuperação 40s a ~10% abaixo do RCP. */
+  const hiitCurto=()=>({zi:4,title:'HIIT Curto',dur:'30–35 min',
+    tgt:{v:`${vVO2.toFixed(1)} km/h`,pace:pace(vVO2),fc:`≈ ${z.hrm} bpm`},steps:[
+    '10 min de aquecimento em Z2 + 4 acelerações de 15 s.',
+    `12–15 × 20 s a ${vVO2.toFixed(1)} km/h (vPeak), recuperação de 40 s a ~${(z.vVT2*0.9).toFixed(1)} km/h.`,
+    '8–10 min de volta à calma em Z1.','Esforços quase-máximos e curtos — foco em potência aeróbia.']});
+  /* Repeated-sprint training (RST): sprints <10s, recuperação <60s, quase-máximo. */
+  const rst=()=>({zi:4,title:'RST — Repeated Sprint Training',dur:'30–35 min',
+    tgt:{v:'sprint (quase-máximo)',pace:'—',fc:`≈ ${z.hrm} bpm`},steps:[
+    '15 min de aquecimento progressivo + 3 tiros de 10 s submáximos.',
+    '8–10 × 6 s sprint quase all-out, recuperação de 30–45 s (trote muito leve).',
+    '10 min de volta à calma.','Foco em potência/velocidade — reservado a alunos já adaptados a esforço máximo.']});
+  /* Sprint interval training (SIT): 20-30s all-out, recuperação passiva 2-4min. */
+  const sit=()=>({zi:4,title:'SIT — Sprint Interval Training',dur:'30 min',
+    tgt:{v:'all-out',pace:'—',fc:`≈ ${z.hrm} bpm`},steps:[
+    '15 min de aquecimento progressivo.',
+    '4–6 × 30 s all-out (esforço máximo), recuperação passiva/trote muito leve de 3 min.',
+    '10 min de volta à calma.','Altíssima intensidade e baixo volume — reservado a objetivo performance.']});
+  let qualidade;
+  if(ph==='base')qualidade=fartlek();
+  else if(ph==='transicao')qualidade=ritmoLivre();
+  else if(ph==='construcao')qualidade=intervaladoZ4();
+  else qualidade=(n%2===0)?hiitCurto():hiitLongoRCP();
+  const tempoAllowed=goal==='perf'&&ph==='especifico'&&state.profile.level!=='ini';
+  const tempo=tempoAllowed?((n%2===0)?sit():rst()):{zi:2,title:'Tempo run (limiar)',dur:'40–45 min',tgt:z3,steps:[
     '10 min de aquecimento em Z2.',
     (ph==='construcao'||ph==='especifico')?`3 × 8 min em Z3 alta (~${z.vVT2} km/h), pausa de 2 min trotando.`:`2 × 10 min entre Z3 e Z4 (~${z.vVT2} km/h), pausa de 2 min trotando.`,
     '10 min de volta à calma.','Sensação de “desconforto controlado” (RPE 5–7).']};

@@ -1,7 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass
+  vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
+  classifySpo2, classifyGlicose
 } = require('../assets/calc.js');
 
 test('vo2At reproduz a tabela do protocolo (velocidade → VO2)', () => {
@@ -100,4 +101,27 @@ test('tteClass respeita os limites de 210/300/420/540s', () => {
   assert.equal(tteClass(300)[0], 'Bom (≈ média da literatura)');
   assert.equal(tteClass(420)[0], 'Muito bom');
   assert.equal(tteClass(540)[0], 'Excelente');
+});
+
+test('classifySpo2 respeita os limites de 90/95%', () => {
+  assert.equal(classifySpo2(89).level, 'contraindicado');
+  assert.equal(classifySpo2(90).level, 'ressalva');
+  assert.equal(classifySpo2(94).level, 'ressalva');
+  assert.equal(classifySpo2(95).level, 'normal');
+});
+
+test('classifySpo2 trata ausência de dado sem quebrar', () => {
+  assert.equal(classifySpo2('').level, 'sem-dado');
+  assert.equal(classifySpo2(undefined).level, 'sem-dado');
+});
+
+test('classifyGlicose respeita os limites de 70/300 mg/dL', () => {
+  assert.equal(classifyGlicose(69).level, 'ressalva');
+  assert.equal(classifyGlicose(70).level, 'normal');
+  assert.equal(classifyGlicose(300).level, 'normal');
+  assert.equal(classifyGlicose(301).level, 'ressalva');
+});
+
+test('classifyGlicose é opcional: ausência de dado não quebra', () => {
+  assert.equal(classifyGlicose('').level, 'sem-dado');
 });

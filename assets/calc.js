@@ -88,6 +88,25 @@ function tteClass(sec) {
   return ['Excelente', 'text-lime'];
 }
 
+/* Limites conservadores de prescrição de exercício (referência ACSM):
+   SpO2 < 90% e glicose fora de 70–300 mg/dL entram como fator de ressalva
+   ou contraindicação no parecer da Triagem (Princípio III da constitution). */
+function classifySpo2(pct) {
+  const v = +pct;
+  if (pct === '' || pct == null || Number.isNaN(v)) return { level: 'sem-dado', label: 'Não registrada' };
+  if (v < 90) return { level: 'contraindicado', label: 'SpO₂ < 90% — risco de hipoxemia, contraindica o teste' };
+  if (v < 95) return { level: 'ressalva', label: 'SpO₂ 90–94% — abaixo do ideal, liberar com ressalvas' };
+  return { level: 'normal', label: 'SpO₂ normal' };
+}
+
+function classifyGlicose(mgdl) {
+  const v = +mgdl;
+  if (mgdl === '' || mgdl == null || Number.isNaN(v)) return { level: 'sem-dado', label: 'Não registrada' };
+  if (v < 70) return { level: 'ressalva', label: 'Hipoglicemia — oriente ingestão de carboidrato antes do esforço' };
+  if (v > 300) return { level: 'ressalva', label: 'Hiperglicemia — avalie sintomas antes de esforço vigoroso' };
+  return { level: 'normal', label: 'Glicose normal' };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass };
+  module.exports = { vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass, classifySpo2, classifyGlicose };
 }
