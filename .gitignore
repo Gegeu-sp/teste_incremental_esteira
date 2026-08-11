@@ -1,0 +1,4 @@
+# Firebase CLI local cache/logs — não versionar
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
