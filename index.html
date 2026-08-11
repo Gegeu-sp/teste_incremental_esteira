@@ -208,6 +208,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 
     <div class="lg:col-span-2 card rounded-2xl p-6 fadein">
       <div id="runArea" class="space-y-5">
+        <div id="liveTestNotice" class="hidden rounded-xl border border-sky-400/40 bg-sky-400/10 p-3 text-xs text-sky-200">↻ Teste em andamento restaurado (a página havia recarregado). Confira os estágios abaixo e aperte "Retomar" quando estiver pronto.</div>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex gap-2">
             <span class="chip bg-sky-400/10 text-sky-300 border border-sky-400/30">Estágio <span id="stNum" class="num">–</span></span>
@@ -472,7 +473,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 <script>
 /* ================= ESTADO ================= */
 const LS_KEY='runlab_state_v2';
-let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},plan:{freq:3,goal:'cond',phase:'base'}};
+let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},liveTest:null,plan:{freq:3,goal:'cond',phase:'base'}};
 try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})});}catch(e){}
 const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
 const $=q=>document.querySelector(q);
@@ -634,10 +635,10 @@ function loop(ts){
   if(tmr.lastTs==null)tmr.lastTs=ts;
   const dt=ts-tmr.lastTs;tmr.lastTs=ts;
   if(!tmr.paused){tmr.stageMs+=dt;tmr.totalMs+=dt;
-    while(tmr.stageMs>=STAGE_MS){tmr.stageMs-=STAGE_MS;completeStage();tmr.stage++;beep(2);}}
+    while(tmr.stageMs>=STAGE_MS){tmr.stageMs-=STAGE_MS;tmr.stage++;
+      tmr.stages.push({v:curSpeed(),hr:null,rpe:null,tt:null});renderStageRows();drawChart();beep(2);saveLiveTest();}}
   updTimerUI();tmr.raf=requestAnimationFrame(loop);
 }
-function completeStage(){tmr.stages.push({v:curSpeed(),hr:null,rpe:null,tt:null});renderStageRows();drawChart();beep(1);}
 
 const TT_LABELS=['💬 frases','🗣 palavras','🚫 não fala'];
 function renderStageRows(){
@@ -649,11 +650,11 @@ function renderStageRows(){
     <td><input data-rpe="${i}" type="number" min="0" max="10" value="${s.rpe??''}" placeholder="0-10" class="w-14 bg-panel border border-line rounded px-1 py-0.5 text-center focus:border-lime outline-none"></td>
     <td><div class="flex gap-1 justify-center font-display">${TT_LABELS.map((l,k)=>
       `<button data-tt="${i}" data-k="${k}" class="tt-btn ${s.tt===k?'on-'+k:''}">${l}</button>`).join('')}</div></td></tr>`).join('');
-  tb.querySelectorAll('[data-hr]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.hr].hr=+e.target.value||null;syncStHrNow();drawChart();}));
-  tb.querySelectorAll('[data-rpe]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.rpe].rpe=Math.min(10,+e.target.value||0)||null;drawChart();}));
+  tb.querySelectorAll('[data-hr]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.hr].hr=+e.target.value||null;syncStHrNow();drawChart();saveLiveTest();}));
+  tb.querySelectorAll('[data-rpe]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.rpe].rpe=Math.min(10,+e.target.value||0)||null;drawChart();saveLiveTest();}));
   tb.querySelectorAll('[data-tt]').forEach(b=>b.onclick=e=>{
     const i=+e.target.dataset.tt,k=+e.target.dataset.k;
-    tmr.stages[i].tt=(tmr.stages[i].tt===k)?null:k;renderStageRows();drawChart();});
+    tmr.stages[i].tt=(tmr.stages[i].tt===k)?null:k;renderStageRows();drawChart();saveLiveTest();});
   syncStHrNow();
 }
 function syncStHrNow(){
@@ -665,7 +666,7 @@ function syncStHrNow(){
 $('#stHrNow').addEventListener('input',e=>{
   if(!tmr.stages.length)return;
   tmr.stages[tmr.stages.length-1].hr=+e.target.value||null;
-  renderStageRows();drawChart();
+  renderStageRows();drawChart();saveLiveTest();
 });
 function drawChart(){
   const c=$('#chart'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
@@ -695,12 +696,20 @@ function drawChart(){
   if(hrs.length)x.fillText('FC '+hmax.toFixed(0),c.width-64,16);
   x.fillText('RPE 10',c.width-64,30);
 }
+function saveLiveTest(){
+  state.liveTest={stage:tmr.stage,stageMs:tmr.stageMs,totalMs:tmr.totalMs,
+    stages:tmr.stages.map(s=>({...s})),tStart:+$('#tStart').value};
+  save();
+}
 $('#btnStart').onclick=()=>{
-  tmr={running:true,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:tmr.stages};
+  tmr={running:true,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:[]};
+  tmr.stages.push({v:curSpeed(),hr:null,rpe:null,tt:null});
+  renderStageRows();drawChart();saveLiveTest();
   $('#btnStart').classList.add('hidden');$('#btnPause').classList.remove('hidden');$('#btnStop').classList.remove('hidden');
   tmr.raf=requestAnimationFrame(loop);beep(1);
 };
-$('#btnPause').onclick=()=>{tmr.paused=!tmr.paused;$('#btnPause').textContent=tmr.paused?'▶ Retomar':'⏸ Pausar';};
+$('#btnPause').onclick=()=>{tmr.paused=!tmr.paused;$('#btnPause').textContent=tmr.paused?'▶ Retomar':'⏸ Pausar';
+  $('#liveTestNotice').classList.add('hidden');saveLiveTest();};
 $('#btnStop').onclick=()=>finishTest();
 
 /* deriveVTs() vem de assets/calc.js */
@@ -715,13 +724,27 @@ function finishTest(){
   state.test={vPeak,vo2max:+vo2.toFixed(1),mets:+(vo2/3.5).toFixed(1),
     totalSec:Math.round(tmr.totalMs/1000),stages:tmr.stages.map(s=>({...s})),
     startV,hrMaxUsed:hrMaxUsed(),date:new Date().toLocaleDateString('pt-BR'),...vt};
-  save();beep(3,true);
+  state.liveTest=null;save();beep(3,true);
   tmr={running:false,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:[]};
   $('#btnStart').classList.remove('hidden');$('#btnPause').classList.add('hidden');$('#btnStop').classList.add('hidden');
   $('#btnPause').textContent='⏸ Pausar';$('#ring').style.strokeDashoffset=0;$('#tTime').textContent='02:00';
   renderTestView();renderZones();
 }
-$('#btnRedo').onclick=()=>{state.test=null;save();renderTestView();};
+$('#btnRedo').onclick=()=>{state.test=null;state.liveTest=null;save();renderTestView();};
+
+/* Restaura um teste em andamento salvo (ex.: página recarregou no meio do teste) */
+function restoreLiveTest(){
+  const lt=state.liveTest;
+  if(!lt||state.test)return;
+  tmr={running:true,paused:true,stage:lt.stage,stageMs:lt.stageMs,totalMs:lt.totalMs,
+    lastTs:null,raf:null,stages:lt.stages.map(s=>({...s}))};
+  if(lt.tStart)$('#tStart').value=lt.tStart;
+  $('#btnStart').classList.add('hidden');$('#btnPause').classList.remove('hidden');$('#btnPause').textContent='▶ Retomar';
+  $('#btnStop').classList.remove('hidden');
+  $('#liveTestNotice').classList.remove('hidden');
+  renderStageRows();drawChart();updTimerUI();
+  tmr.raf=requestAnimationFrame(loop);
+}
 $('#tStart').addEventListener('change',()=>{if(!tmr.running)updTimerUI();});
 updTimerUI();
 
@@ -1006,46 +1029,46 @@ function planSessions(){
   /* Método Contínuo (Z1–Z2): 50–80% VO2máx, >40min, 3–6x/semana. */
   const rod=short=>{const base=short?30:(ph==='base'?45:ph==='transicao'?30:40);
     return{zi:1,title:'Método Contínuo — Rodagem',dur:fmtDur(base,base,cap),tgt:z2,steps:[
-    'Ritmo confortável, conversa fluida (RPE 3–4) — 50–80% do VO₂máx.','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']};};
+    'Ritmo confortável, conversa fluida (RPE 3–4) — 50–80% do VO₂máx.',`Manter dentro da Z2 (${z2.v}) o tempo inteiro.`,'Terminar com 4 acelerações de 20 s (opcional).']};};
   const rec=()=>({zi:0,title:'Recuperação ativa',dur:fmtDur(25,30,cap),tgt:z1,steps:[
-    'Trote muito leve ou caminhada inclinada (RPE 1–2).','Objetivo: fluxo sanguíneo e recuperação — sem fadiga.']});
+    `Trote muito leve ou caminhada inclinada em Z1 (${z1.v}) (RPE 1–2).`,'Objetivo: fluxo sanguíneo e recuperação — sem fadiga.']});
   const longao=()=>{const base=ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45;
     return{zi:1,title:'Método Contínuo — Longão',dur:fmtDur(base,base,cap),tgt:z2,steps:[
-    'Ritmo Z2 constante do início ao fim (50–80% do VO₂máx).','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']};};
+    `Ritmo Z2 (${z2.v}) constante do início ao fim (50–80% do VO₂máx).`,'Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']};};
   /* Fartlek (Z1–Z2): execução prolongada com alteração frequente de ritmo, 50–80% VO2máx, >40min, ~3x/semana. */
   const fartlek=()=>({zi:3,title:'Fartlek (Z1–Z2)',dur:fmtDur(35,40,cap),tgt:zTarget(3),steps:[
-    '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1) — alteração frequente de ritmo, sem trilho fixo.','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']});
+    `10 min de aquecimento em Z2 (${z2.v}).`,`8 × (1 min em Z4 [${zTarget(3).v}] / 1 min em Z1 [${z1.v}]) — alteração frequente de ritmo, sem trilho fixo.`,`10 min de volta à calma em Z1–Z2 (${z1.v} a ${z2.v}).`,'Esforço controlado — não é para esgotar.']});
   const ritmoLivre=()=>({zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
-    'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']});
+    `Corrida leve a moderada por sensação (referência solta: Z1–Z2, ${z1.v} a ${z2.v}).`,'4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']});
   /* Intervalado Zona 4: entre RCP e vVO2máx, volume moderado. */
   const intervaladoZ4=()=>({zi:3,title:'Intervalado — Zona 4',dur:fmtDur(35,40,cap),tgt:zTarget(3),steps:[
-    '10 min de aquecimento em Z2.',
-    `6 × 3 min na Zona 4 (${zTarget(3).v}), recuperação de 2 min em Z1.`,
-    '10 min de volta à calma em Z1.','Ponte entre o tempo run e o HIIT — entre o RCP e a vVO₂máx.']});
+    `10 min de aquecimento em Z2 (${z2.v}).`,
+    `6 × 3 min na Zona 4 (${zTarget(3).v}), recuperação de 2 min em Z1 (${z1.v}).`,
+    `10 min de volta à calma em Z1 (${z1.v}).`,'Ponte entre o tempo run e o HIIT — entre o RCP e a vVO₂máx.']});
   /* HIIT Longo no RCP (Zona 3): 4min ~85% FCmáx / próximo ao RCP, recuperação 3min ~10% abaixo do RCP. */
   const hiitLongoRCP=()=>({zi:2,title:'HIIT Longo — no RCP (Zona 3)',dur:fmtDur(35,40,cap),
     tgt:{v:`~${z.vVT2.toFixed(1)} km/h`,pace:pace(z.vVT2),fc:z.fcVT2+' bpm'},steps:[
-    '10 min de aquecimento em Z2.',
+    `10 min de aquecimento em Z2 (${z2.v}).`,
     `5 × 4 min a ~${z.vVT2.toFixed(1)} km/h (RCP), recuperação de 3 min a ~${(z.vVT2*0.9).toFixed(1)} km/h (10% abaixo do RCP).`,
-    '10 min de volta à calma em Z1.','Protocolo de HIIT longo baseado em evidência: eleva VO₂máx e limiar anaeróbico.']});
+    `10 min de volta à calma em Z1 (${z1.v}).`,'Protocolo de HIIT longo baseado em evidência: eleva VO₂máx e limiar anaeróbico.']});
   /* HIIT Curto: 20s a 100% do pico, recuperação 40s a ~10% abaixo do RCP. */
   const hiitCurto=()=>({zi:4,title:'HIIT Curto',dur:fmtDur(30,35,cap),
     tgt:{v:`${vVO2.toFixed(1)} km/h`,pace:pace(vVO2),fc:`≈ ${z.hrm} bpm`},steps:[
-    '10 min de aquecimento em Z2 + 4 acelerações de 15 s.',
+    `10 min de aquecimento em Z2 (${z2.v}) + 4 acelerações de 15 s.`,
     `12–15 × 20 s a ${vVO2.toFixed(1)} km/h (vPeak), recuperação de 40 s a ~${(z.vVT2*0.9).toFixed(1)} km/h.`,
-    '8–10 min de volta à calma em Z1.','Esforços quase-máximos e curtos — foco em potência aeróbia.']});
+    `8–10 min de volta à calma em Z1 (${z1.v}).`,'Esforços quase-máximos e curtos — foco em potência aeróbia.']});
   /* Repeated-sprint training (RST): sprints <10s, recuperação <60s, quase-máximo. */
   const rst=()=>({zi:4,title:'RST — Repeated Sprint Training',dur:'30–35 min',
     tgt:{v:'sprint (quase-máximo)',pace:'—',fc:`≈ ${z.hrm} bpm`},steps:[
-    '15 min de aquecimento progressivo + 3 tiros de 10 s submáximos.',
+    `15 min de aquecimento progressivo até Z2 (${z2.v}) + 3 tiros de 10 s submáximos.`,
     '8–10 × 6 s sprint quase all-out, recuperação de 30–45 s (trote muito leve).',
-    '10 min de volta à calma.','Foco em potência/velocidade — reservado a alunos já adaptados a esforço máximo.']});
+    `10 min de volta à calma em Z1 (${z1.v}).`,'Foco em potência/velocidade — reservado a alunos já adaptados a esforço máximo.']});
   /* Sprint interval training (SIT): 20-30s all-out, recuperação passiva 2-4min. */
   const sit=()=>({zi:4,title:'SIT — Sprint Interval Training',dur:'30 min',
     tgt:{v:'all-out',pace:'—',fc:`≈ ${z.hrm} bpm`},steps:[
-    '15 min de aquecimento progressivo.',
+    `15 min de aquecimento progressivo até Z2 (${z2.v}).`,
     '4–6 × 30 s all-out (esforço máximo), recuperação passiva/trote muito leve de 3 min.',
-    '10 min de volta à calma.','Altíssima intensidade e baixo volume — reservado a objetivo performance.']});
+    `10 min de volta à calma em Z1 (${z1.v}).`,'Altíssima intensidade e baixo volume — reservado a objetivo performance.']});
   let qualidade;
   if(ph==='base')qualidade=fartlek();
   else if(ph==='transicao')qualidade=ritmoLivre();
@@ -1053,9 +1076,9 @@ function planSessions(){
   else qualidade=(n%2===0)?hiitCurto():hiitLongoRCP();
   const tempoAllowed=goal==='perf'&&ph==='especifico'&&state.profile.level!=='ini';
   const tempo=tempoAllowed?((n%2===0)?sit():rst()):{zi:2,title:'Tempo run (limiar)',dur:fmtDur(40,45,cap),tgt:z3,steps:[
-    '10 min de aquecimento em Z2.',
+    `10 min de aquecimento em Z2 (${z2.v}).`,
     (ph==='construcao'||ph==='especifico')?`3 × 8 min em Z3 alta (~${z.vVT2} km/h), pausa de 2 min trotando.`:`2 × 10 min entre Z3 e Z4 (~${z.vVT2} km/h), pausa de 2 min trotando.`,
-    '10 min de volta à calma.','Sensação de “desconforto controlado” (RPE 5–7).']};
+    `10 min de volta à calma em Z1 (${z1.v}).`,'Sensação de “desconforto controlado” (RPE 5–7).']};
   if(goal==='cardio'){
     return Array.from({length:n},(_,i)=>({zi:1,title:'Cardio pós-musculação',dur:'20–30 min',tgt:i%2?z1:z2,steps:[
       'Realizar logo após a musculação (força primeiro).','Intensidade Z1–Z2, conversa fácil (RPE ≤ 4).',
@@ -1087,6 +1110,7 @@ function renderPlan(){
 /* ================= GERAL ================= */
 $('#btnResetAll').onclick=()=>{if(confirm('Apagar todos os dados salvos?')){localStorage.removeItem(LS_KEY);location.reload();}};
 buildFreqBtns();syncPlanControls();
+restoreLiveTest();
 if(state.test)renderTestView();
 renderZones();renderTte();renderPlan();
 showTab('perfil');
