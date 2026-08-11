@@ -30,23 +30,33 @@ entrada é `index.html`.
 
 ### Firebase Hosting
 
-O repositório já traz `firebase.json` configurado (raiz do repo como pasta
-pública, ignorando `specs/`, `tests/`, `.specify/` etc.). Passos (rodar
-localmente — o login do Firebase é interativo, via navegador):
+Projeto Firebase: **`teste-incremental-56aeb`** ([console](https://console.firebase.google.com/project/teste-incremental-56aeb/overview)),
+já referenciado em `.firebaserc`. `firebase.json` publica a raiz do repo
+(`index.html` + `assets/`), ignorando `specs/`, `tests/`, `.specify/` etc.
+
+**Deploy manual** (login interativo, via navegador):
 
 ```bash
 npm install -g firebase-tools   # se ainda não tiver o CLI
 firebase login
-firebase use --add              # escolha/crie o projeto no Firebase Console
-                                 # e associe um alias (ex.: "default")
 firebase deploy --only hosting
 ```
 
-Se ainda não existe um projeto, crie um em
-[console.firebase.google.com](https://console.firebase.google.com/) antes do
-`firebase use --add`. O arquivo `.firebaserc` (gerado pelo `use --add`) é
-local por padrão (está no `.gitignore`) — remova a entrada do `.gitignore`
-se quiser versionar o projeto padrão do time.
+**Deploy automático (GitHub Actions)** — já configurado em
+`.github/workflows/firebase-hosting-merge.yml` (deploy em push para `main`)
+e `firebase-hosting-pull-request.yml` (preview em cada PR). Falta só
+cadastrar a credencial, uma vez:
+
+1. No [console do Firebase](https://console.firebase.google.com/project/teste-incremental-56aeb/settings/serviceaccounts/adminsdk),
+   gere uma nova chave privada de service account (ou rode
+   `firebase init hosting:github` localmente, que faz isso e já cria o
+   secret no repo automaticamente).
+2. No GitHub, vá em **Settings → Secrets and variables → Actions** deste
+   repositório e crie o secret
+   `FIREBASE_SERVICE_ACCOUNT_TESTE_INCREMENTAL_56AEB` com o conteúdo do
+   JSON gerado.
+3. A partir daí, todo push em `main` publica automaticamente e todo PR
+   ganha uma URL de preview comentada automaticamente.
 
 ## Estrutura
 
