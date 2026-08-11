@@ -235,7 +235,12 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
               <button id="btnPause" class="px-4 py-2.5 rounded-xl border border-line text-sm hover:border-lime/60 transition hidden">⏸ Pausar</button>
               <button id="btnStop" class="px-4 py-2.5 rounded-xl border border-rose-500/50 text-rose-300 text-sm hover:bg-rose-500/10 transition hidden">■ Encerrar (exaustão)</button>
             </div>
-            <p class="text-[11px] text-slate-500 leading-relaxed">Ao final de cada estágio, registre FC, RPE e o Talk Test na tabela abaixo.</p>
+            <label class="block rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
+              <span class="text-[11px] font-bold text-rose-200">❤️ FC do último estágio (bpm)</span>
+              <input id="stHrNow" type="number" min="25" max="220" placeholder="—" disabled
+                class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-2xl font-bold text-center focus:border-lime outline-none disabled:opacity-40">
+            </label>
+            <p class="text-[11px] text-slate-500 leading-relaxed">Registre também RPE e Talk Test na tabela abaixo — os três dados ficam sincronizados.</p>
           </div>
         </div>
 
@@ -273,7 +278,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
           <span class="text-xs text-slate-400" id="resDate"></span>
           <button id="btnRedo" class="ml-auto no-print text-xs border border-line rounded-lg px-3 py-1.5 hover:border-lime/60 transition">↻ Refazer teste</button>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="resGrid"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3" id="resGrid"></div>
 
         <!-- Resposta hemodinâmica -->
         <div id="hemoCard" class="rounded-xl border border-line bg-ink p-4 text-xs hidden"></div>
@@ -435,6 +440,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       </div>
       <p class="mt-2 text-slate-400">Com essa estrutura, é possível melhorar o VO₂máx em ~10–15% e a força em ~10–20% em 8–12 semanas, sem interferência relevante.</p>
     </div>
+    <div id="capWarning" class="hidden rounded-xl border border-amber-400/40 bg-amber-400/5 p-3 text-xs text-amber-200"></div>
     <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="weekGrid"></div>
     <div class="card rounded-2xl p-5 fadein">
       <h3 class="text-sm font-bold text-lime mb-3">Periodização geral — macrociclo</h3>
@@ -643,12 +649,24 @@ function renderStageRows(){
     <td><input data-rpe="${i}" type="number" min="0" max="10" value="${s.rpe??''}" placeholder="0-10" class="w-14 bg-panel border border-line rounded px-1 py-0.5 text-center focus:border-lime outline-none"></td>
     <td><div class="flex gap-1 justify-center font-display">${TT_LABELS.map((l,k)=>
       `<button data-tt="${i}" data-k="${k}" class="tt-btn ${s.tt===k?'on-'+k:''}">${l}</button>`).join('')}</div></td></tr>`).join('');
-  tb.querySelectorAll('[data-hr]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.hr].hr=+e.target.value||null;drawChart();}));
+  tb.querySelectorAll('[data-hr]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.hr].hr=+e.target.value||null;syncStHrNow();drawChart();}));
   tb.querySelectorAll('[data-rpe]').forEach(inp=>inp.addEventListener('input',e=>{tmr.stages[+e.target.dataset.rpe].rpe=Math.min(10,+e.target.value||0)||null;drawChart();}));
   tb.querySelectorAll('[data-tt]').forEach(b=>b.onclick=e=>{
     const i=+e.target.dataset.tt,k=+e.target.dataset.k;
     tmr.stages[i].tt=(tmr.stages[i].tt===k)?null:k;renderStageRows();drawChart();});
+  syncStHrNow();
 }
+function syncStHrNow(){
+  const el=$('#stHrNow');
+  if(!tmr.stages.length){el.value='';el.disabled=true;return;}
+  el.disabled=false;
+  el.value=tmr.stages[tmr.stages.length-1].hr??'';
+}
+$('#stHrNow').addEventListener('input',e=>{
+  if(!tmr.stages.length)return;
+  tmr.stages[tmr.stages.length-1].hr=+e.target.value||null;
+  renderStageRows();drawChart();
+});
 function drawChart(){
   const c=$('#chart'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
   const st=tmr.stages;
@@ -724,9 +742,9 @@ function renderResults(){
     ['VT1',t.vt1V!=null?t.vt1V.toFixed(1)+' km/h':'não identificado','fala em frases (Talk Test)'],
     ['RCP / VT2 (LA)',t.vt2V!=null?t.vt2V.toFixed(1)+' km/h':'não identificado','fala impossível (Talk Test)']
   ];
-  $('#resGrid').innerHTML=metrics.map(m=>`<div class="rounded-xl border border-line bg-ink p-4">
+  $('#resGrid').innerHTML=metrics.map(m=>`<div class="rounded-xl border border-line bg-ink p-4 text-center">
     <div class="text-[10px] uppercase tracking-wider text-slate-500">${m[0]}</div>
-    <div class="num text-xl font-bold text-white mt-1">${m[1]}</div>
+    <div class="num text-lg font-bold text-white mt-1 break-words">${m[1]}</div>
     <div class="text-[10px] text-slate-500 mt-0.5">${m[2]}</div></div>`).join('');
 
   const restFc=+state.screen.fc;
@@ -964,36 +982,54 @@ function sessionCard(day,zi,title,structure,dur,extra){const c=ZCOLORS[zi];
       <div>⏱ Pace: <b class="text-white">${extra.pace}</b></div>
       <div>❤️ FC: <b class="text-white">${extra.fc}</b></div></div>
     <ol class="text-[11px] text-slate-300 space-y-1 leading-relaxed list-decimal list-inside flex-1">${structure.map(s=>`<li>${s}</li>`).join('')}</ol></div>`;}
+/* Teto de duração das sessões contínuas conforme a capacidade demonstrada
+   no teste incremental (tempo total até a exaustão). O app já orienta um
+   teste "ideal" de 8–12 min — abaixo disso, reduz o volume prescrito em
+   vez de ignorar o que o aluno demonstrou aguentar. */
+function capacityCapMin(totalSec){
+  if(!totalSec)return null;
+  if(totalSec<360)return 15;
+  if(totalSec<600)return 25;
+  if(totalSec<900)return 40;
+  return null;
+}
+function fmtDur(min,max,cap){
+  if(cap==null)return(min===max?min:`${min}–${max}`)+' min';
+  return Math.max(15,Math.min(max,cap))+' min';
+}
 function planSessions(){
   const z=zonesData();if(!z)return[];
   const ph=state.plan.phase,n=state.plan.freq,goal=state.plan.goal;
   const z1=zTarget(0),z2=zTarget(1),z3=zTarget(2);
   const vVO2=state.test.vPeak;
+  const cap=capacityCapMin(state.test.totalSec);
   /* Método Contínuo (Z1–Z2): 50–80% VO2máx, >40min, 3–6x/semana. */
-  const rod=short=>({zi:1,title:'Método Contínuo — Rodagem',dur:(short?30:(ph==='base'?45:ph==='transicao'?30:40))+' min',tgt:z2,steps:[
-    'Ritmo confortável, conversa fluida (RPE 3–4) — 50–80% do VO₂máx.','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']});
-  const rec=()=>({zi:0,title:'Recuperação ativa',dur:'25–30 min',tgt:z1,steps:[
+  const rod=short=>{const base=short?30:(ph==='base'?45:ph==='transicao'?30:40);
+    return{zi:1,title:'Método Contínuo — Rodagem',dur:fmtDur(base,base,cap),tgt:z2,steps:[
+    'Ritmo confortável, conversa fluida (RPE 3–4) — 50–80% do VO₂máx.','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']};};
+  const rec=()=>({zi:0,title:'Recuperação ativa',dur:fmtDur(25,30,cap),tgt:z1,steps:[
     'Trote muito leve ou caminhada inclinada (RPE 1–2).','Objetivo: fluxo sanguíneo e recuperação — sem fadiga.']});
-  const longao=()=>({zi:1,title:'Método Contínuo — Longão',dur:(ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45)+' min',tgt:z2,steps:[
-    'Ritmo Z2 constante do início ao fim (50–80% do VO₂máx).','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']});
+  const longao=()=>{const base=ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45;
+    return{zi:1,title:'Método Contínuo — Longão',dur:fmtDur(base,base,cap),tgt:z2,steps:[
+    'Ritmo Z2 constante do início ao fim (50–80% do VO₂máx).','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']};};
   /* Fartlek (Z1–Z2): execução prolongada com alteração frequente de ritmo, 50–80% VO2máx, >40min, ~3x/semana. */
-  const fartlek=()=>({zi:3,title:'Fartlek (Z1–Z2)',dur:'35–40 min',tgt:zTarget(3),steps:[
+  const fartlek=()=>({zi:3,title:'Fartlek (Z1–Z2)',dur:fmtDur(35,40,cap),tgt:zTarget(3),steps:[
     '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1) — alteração frequente de ritmo, sem trilho fixo.','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']});
   const ritmoLivre=()=>({zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
     'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']});
   /* Intervalado Zona 4: entre RCP e vVO2máx, volume moderado. */
-  const intervaladoZ4=()=>({zi:3,title:'Intervalado — Zona 4',dur:'35–40 min',tgt:zTarget(3),steps:[
+  const intervaladoZ4=()=>({zi:3,title:'Intervalado — Zona 4',dur:fmtDur(35,40,cap),tgt:zTarget(3),steps:[
     '10 min de aquecimento em Z2.',
     `6 × 3 min na Zona 4 (${zTarget(3).v}), recuperação de 2 min em Z1.`,
     '10 min de volta à calma em Z1.','Ponte entre o tempo run e o HIIT — entre o RCP e a vVO₂máx.']});
   /* HIIT Longo no RCP (Zona 3): 4min ~85% FCmáx / próximo ao RCP, recuperação 3min ~10% abaixo do RCP. */
-  const hiitLongoRCP=()=>({zi:2,title:'HIIT Longo — no RCP (Zona 3)',dur:'35–40 min',
+  const hiitLongoRCP=()=>({zi:2,title:'HIIT Longo — no RCP (Zona 3)',dur:fmtDur(35,40,cap),
     tgt:{v:`~${z.vVT2.toFixed(1)} km/h`,pace:pace(z.vVT2),fc:z.fcVT2+' bpm'},steps:[
     '10 min de aquecimento em Z2.',
     `5 × 4 min a ~${z.vVT2.toFixed(1)} km/h (RCP), recuperação de 3 min a ~${(z.vVT2*0.9).toFixed(1)} km/h (10% abaixo do RCP).`,
     '10 min de volta à calma em Z1.','Protocolo de HIIT longo baseado em evidência: eleva VO₂máx e limiar anaeróbico.']});
   /* HIIT Curto: 20s a 100% do pico, recuperação 40s a ~10% abaixo do RCP. */
-  const hiitCurto=()=>({zi:4,title:'HIIT Curto',dur:'30–35 min',
+  const hiitCurto=()=>({zi:4,title:'HIIT Curto',dur:fmtDur(30,35,cap),
     tgt:{v:`${vVO2.toFixed(1)} km/h`,pace:pace(vVO2),fc:`≈ ${z.hrm} bpm`},steps:[
     '10 min de aquecimento em Z2 + 4 acelerações de 15 s.',
     `12–15 × 20 s a ${vVO2.toFixed(1)} km/h (vPeak), recuperação de 40 s a ~${(z.vVT2*0.9).toFixed(1)} km/h.`,
@@ -1016,7 +1052,7 @@ function planSessions(){
   else if(ph==='construcao')qualidade=intervaladoZ4();
   else qualidade=(n%2===0)?hiitCurto():hiitLongoRCP();
   const tempoAllowed=goal==='perf'&&ph==='especifico'&&state.profile.level!=='ini';
-  const tempo=tempoAllowed?((n%2===0)?sit():rst()):{zi:2,title:'Tempo run (limiar)',dur:'40–45 min',tgt:z3,steps:[
+  const tempo=tempoAllowed?((n%2===0)?sit():rst()):{zi:2,title:'Tempo run (limiar)',dur:fmtDur(40,45,cap),tgt:z3,steps:[
     '10 min de aquecimento em Z2.',
     (ph==='construcao'||ph==='especifico')?`3 × 8 min em Z3 alta (~${z.vVT2} km/h), pausa de 2 min trotando.`:`2 × 10 min entre Z3 e Z4 (~${z.vVT2} km/h), pausa de 2 min trotando.`,
     '10 min de volta à calma.','Sensação de “desconforto controlado” (RPE 5–7).']};
@@ -1041,6 +1077,9 @@ function renderPlan(){
   $('#concurrentCard').classList.toggle('hidden',state.plan.goal!=='cardio');
   const days=DAYS_BY_N[state.plan.freq];
   $('#weekGrid').innerHTML=planSessions().map((s,i)=>sessionCard(days[i],s.zi,s.title,s.steps,s.dur,s.tgt)).join('');
+  const cap=capacityCapMin(state.test.totalSec);
+  $('#capWarning').classList.toggle('hidden',cap==null);
+  if(cap!=null)$('#capWarning').innerHTML=`⚠ Duração das sessões contínuas ajustada à capacidade demonstrada no teste (${fmtMS(state.test.totalSec)} totais) — teto de ${cap} min por sessão. Ajuste manualmente se avaliar que o aluno pode mais.`;
   const phaseNames={base:'Base',construcao:'Construção',especifico:'Específico',transicao:'Transição'};
   const goalNames={cond:'Condicionamento geral',cardio:'Cardio pós-musculação',perf:'Performance em corrida'};
   $('#planMeta').textContent=`${state.profile.name?state.profile.name+' · ':''}${state.plan.freq}×/semana · ${goalNames[state.plan.goal]} · fase ${phaseNames[state.plan.phase]} · vVO₂max ${state.test.vPeak.toFixed(1)} km/h${state.tte?' · tlim '+fmtMS(state.tte.sec):''}`;}
