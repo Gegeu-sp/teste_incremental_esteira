@@ -35,6 +35,13 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
   .ckbox.danger:has(input:checked){border-color:#f43f5e;background:rgba(244,63,94,.08);}
   ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#243144;border-radius:8px}
   @media print{.no-print{display:none!important}body{background:#fff;color:#111}.card{border-color:#ccc;background:#fff}}
+  #reportView h2{font-size:1rem;font-weight:800;margin-top:1.25rem;margin-bottom:.5rem;}
+  #reportView table{width:100%;font-size:.75rem;border-collapse:collapse;}
+  #reportView th,#reportView td{border:1px solid #ccc;padding:.35rem .5rem;text-align:left;}
+  @media print{
+    body.report-mode main>section.tab-panel,body.report-mode>footer{display:none!important}
+    body.report-mode #reportView{display:block!important}
+  }
 </style>
 </head>
 <body class="text-slate-200 min-h-screen">
@@ -410,6 +417,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
     </div>
     <div class="flex items-center gap-3 mt-5">
       <button id="btnPrint" class="px-4 py-2.5 rounded-xl bg-lime text-ink text-sm font-bold hover:brightness-110 transition">🖨 Imprimir / salvar plano</button>
+      <button id="btnReport" class="px-4 py-2.5 rounded-xl border border-lime/50 text-lime text-sm font-bold hover:bg-lime/10 transition">📄 Gerar Relatório Completo (PDF)</button>
       <span class="text-[11px] text-slate-500" id="planMeta"></span>
     </div>
   </div>
@@ -446,6 +454,8 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
     </div>
   </div>
 </section>
+
+<div id="reportView" class="hidden"></div>
 </main>
 
 <footer class="border-t border-line py-6 text-center text-[11px] text-slate-500">
@@ -886,6 +896,61 @@ function syncPlanControls(){
 document.querySelectorAll('#goalBtns .seg').forEach(b=>b.onclick=()=>{state.plan.goal=b.dataset.goal;save();syncPlanControls();renderPlan();});
 document.querySelectorAll('#phaseBtns .seg').forEach(b=>b.onclick=()=>{state.plan.phase=b.dataset.phase;save();syncPlanControls();renderPlan();});
 $('#btnPrint').onclick=()=>window.print();
+
+/* ================= RELATÓRIO COMPLETO (Fase 2B) ================= */
+function renderReport(){
+  const p=state.profile,s=state.screen,t=state.test,tte=state.tte;
+  const levelL={ini:'Iniciante',int:'Intermediário',ava:'Avançado'}[p.level]||'—';
+  const goalL={cond:'Condicionamento geral',cardio:'Cardio pós-musculação',perf:'Performance em corrida'}[p.goal]||'—';
+  let h=`<h1 style="font-size:1.4rem;font-weight:800">Relatório RunLab</h1>
+    <p style="font-size:.75rem;color:#555">${p.name||'Aluno'} · emitido em ${new Date().toLocaleDateString('pt-BR')}</p>
+    <h2>Perfil</h2>
+    <p>Idade: ${p.age||'—'} · Sexo: ${p.sex==='f'?'Feminino':'Masculino'} · Altura: ${p.height?p.height+' cm':'—'} · Nível: ${levelL} · Objetivo: ${goalL}</p>`;
+
+  h+='<h2>Triagem</h2>';
+  if(s.pas||s.fc||s.spo2){
+    const spo2Info=classifySpo2(s.spo2),glicoseInfo=classifyGlicose(s.glicose);
+    h+=`<p>PA: ${s.pas&&s.pad?s.pas+'/'+s.pad+' mmHg':'—'} · FC repouso: ${s.fc?s.fc+' bpm':'—'} · SpO₂: ${s.spo2?s.spo2+'%':'—'} (${spo2Info.label}) · Glicose: ${s.glicose?s.glicose+' mg/dL':'—'} (${glicoseInfo.label})</p>`;
+  }else h+='<p>Triagem não registrada.</p>';
+
+  if(t){
+    const d=diagnose(t.vo2max);
+    h+=`<h2>Diagnóstico do Teste Incremental</h2>
+      <p>VO₂máx: ${t.vo2max.toFixed(1)} ml/kg·min (${d.cls}, ref. ${d.avg}) · vPico/vVO₂max: ${t.vPeak.toFixed(1)} km/h
+      · VT1: ${t.vt1V!=null?t.vt1V.toFixed(1)+' km/h':'não identificado'} · RCP/VT2: ${t.vt2V!=null?t.vt2V.toFixed(1)+' km/h':'não identificado'}</p>`;
+  }else{
+    h+='<h2>Diagnóstico</h2><p>Conclua o teste incremental para gerar o diagnóstico completo.</p>';
+  }
+
+  if(tte){
+    h+=`<h2>Teste de Tolerância</h2><p>Tempo-limite: ${fmtMS(tte.sec)} a ${(tte.v||0).toFixed(1)} km/h</p>`;
+  }
+
+  const z=zonesData();
+  if(z){
+    h+='<h2>Zonas de Treino</h2><table><thead><tr><th>Zona</th><th>FC (bpm)</th><th>Velocidade (km/h)</th><th>Objetivo</th></tr></thead><tbody>';
+    h+=ZMETA.map((m,i)=>{const r=z.ranges[i];return `<tr><td>${m.n} — ${m.name}</td><td>${r.fc}</td><td>${r.vMin.toFixed(1)} – ${r.vMax.toFixed(1)}</td><td>${m.goal}</td></tr>`;}).join('');
+    h+='</tbody></table>';
+  }
+
+  const sessions=planSessions();
+  if(sessions.length){
+    const days=DAYS_BY_N[state.plan.freq]||[];
+    h+='<h2>Plano Semanal</h2>';
+    h+=sessions.map((sess,i)=>`<p><b>${days[i]||''}:</b> ${sess.title} — ${sess.dur} (${sess.tgt.v})</p>`).join('');
+  }else{
+    h+='<h2>Plano Semanal</h2><p>Conclua o teste incremental para gerar o plano.</p>';
+  }
+
+  h+='<p style="font-size:.7rem;color:#777;margin-top:1.5rem">RunLab · Ferramenta educacional de prescrição baseada em testes — não substitui avaliação médica.</p>';
+  $('#reportView').innerHTML=h;
+}
+$('#btnReport').onclick=()=>{
+  renderReport();
+  document.body.classList.add('report-mode');
+  window.print();
+  document.body.classList.remove('report-mode');
+};
 function zTarget(i){const z=zonesData();const r=z.ranges[i];
   return{v:`${r.vMin.toFixed(1)}–${r.vMax.toFixed(1)} km/h`,pace:`${pace(r.vMax)}–${pace(r.vMin)}/km`,fc:r.fc+' bpm'};}
 function sessionCard(day,zi,title,structure,dur,extra){const c=ZCOLORS[zi];
