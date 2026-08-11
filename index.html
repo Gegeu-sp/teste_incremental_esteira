@@ -356,8 +356,33 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
     </div>
     <div class="grid md:grid-cols-3 gap-4 text-xs">
       <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-lime">VT1 (limiar aeróbico)</b><br><span class="text-slate-400">Última intensidade em que ainda se fala em frases completas (Talk Test). Base aeróbia e queima de gordura.</span></div>
-      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-orange-300">RCP / VT2 (limiar anaeróbico)</b><br><span class="text-slate-400">Ponto de compensação respiratória: a fala torna-se impossível e a ventilação dispara. Ritmos acima não são sustentáveis.</span></div>
+      <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-orange-300">RCP / VT2 (limiar anaeróbico)</b><br><span class="text-slate-400">Ponto de compensação respiratória: intensidade até onde o sistema respiratório consegue corrigir a acidose metabólica (H⁺) por alcalose respiratória. A partir daí a acidose torna-se severa e não é mais corrigida — a fala torna-se impossível, a ventilação dispara e a fadiga muscular se instala. Ritmos acima não são sustentáveis.</span></div>
       <div class="card rounded-2xl p-5 leading-relaxed"><b class="text-sky-300">Re-teste periódico</b><br><span class="text-slate-400">Os limiares deslocam-se com o treino. Reavalie e atualize as zonas a cada 6–12 semanas.</span></div>
+    </div>
+
+    <!-- Diagnóstico e interpretação (Fase 2A) -->
+    <div id="zoneDiagCard" class="rounded-2xl border border-lime/30 bg-lime/5 p-5"></div>
+
+    <div class="grid md:grid-cols-2 gap-4 text-xs">
+      <div class="card rounded-2xl p-5 leading-relaxed">
+        <b class="text-slate-200">Comportamento da Pressão Arterial e Frequência Cardíaca no Treinamento</b>
+        <p class="text-slate-400 mt-2">Estudos comparando HIIT a ~90% do VO₂máx com treino contínuo de intensidade moderada não encontraram diferença significativa na pressão arterial ao final do esforço. Já a frequência cardíaca costuma variar mais entre métodos — por exemplo, é maior no SIT do que no HIIT tradicional. Na prática, o que importa é o monitoramento individual: acompanhe FC e RPE por estágio/sessão (já feito neste app) em vez de assumir um padrão fixo para todo aluno.</p>
+      </div>
+      <div class="card rounded-2xl p-5 leading-relaxed">
+        <b class="text-slate-200">Testes para Avaliar o VO₂máx <span class="text-slate-500 font-normal">(referência)</span></b>
+        <p class="text-slate-400 mt-2">Este app usa o protocolo de teste incremental em esteira (2 min · 1 km/h · 1%). Outros protocolos indiretos existentes na literatura:</p>
+        <ul class="text-slate-400 mt-2 space-y-1 list-disc list-inside">
+          <li><b class="text-slate-300">Balke (esteira)</b>: 5,4 km/h constante, +1% de inclinação a cada 1 min até exaustão.</li>
+          <li><b class="text-slate-300">Balke (bicicleta)</b>: +25 W a cada estágio de 2 min até exaustão.</li>
+          <li><b class="text-slate-300">Cooper (12 min)</b>: maior distância percorrida em 12 min.</li>
+          <li><b class="text-slate-300">Caminhada de 6 min</b>: maior distância percorrida em corredor demarcado.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card rounded-2xl p-5 text-xs leading-relaxed">
+      <b class="text-slate-200">Importância da Avaliação Diagnóstica Clínica e Funcional</b>
+      <p class="text-slate-400 mt-2">Diagnóstico é <b class="text-slate-300">interpretar, analisar e julgar</b> um parâmetro — não apenas ler um número. As zonas e o plano gerados aqui são um ponto de partida; a leitura clínica do profissional sobre o contexto do aluno (histórico, limitações, resposta ao treino) continua sendo o que direciona a prescrição final.</p>
     </div>
   </div>
 </section>
@@ -757,6 +782,13 @@ function renderZones(){
   $('#zonesBody').classList.toggle('hidden',!z);
   if(!z)return;
   $('#betaNote').classList.toggle('hidden',!state.screen.limits.beta);
+  const t=state.test,d=diagnose(t.vo2max),sexL=state.profile.sex==='f'?'feminino':'masculino';
+  $('#zoneDiagCard').innerHTML=`
+    <div class="flex flex-wrap items-center gap-3">
+      <h3 class="text-sm font-extrabold text-lime">Diagnóstico da Aptidão Cardiorrespiratória</h3>
+      <span class="chip border ${d.style} text-sm px-4 py-1">${d.cls}</span>
+      <span class="text-[11px] text-slate-400">VO₂máx ${t.vo2max.toFixed(1)} · ref.: média ${sexL} · ${state.profile.age} anos (${d.avg})</span>
+    </div>`;
   $('#zoneSummary').innerHTML=[['FCmáx',z.hrm+' bpm'],['FC @ VT1',z.fcVT1+' bpm'],['FC @ RCP/VT2',z.fcVT2+' bpm'],['vVO₂max',state.test.vPeak.toFixed(1)+' km/h']]
     .map(s=>`<div class="card rounded-2xl p-4 text-center"><div class="text-[10px] uppercase tracking-wider text-slate-500">${s[0]}</div><div class="num text-lg font-bold text-lime mt-1">${s[1]}</div></div>`).join('');
   $('#zonesRows').innerHTML=ZMETA.map((m,i)=>{const r=z.ranges[i];return `
@@ -870,26 +902,56 @@ function sessionCard(day,zi,title,structure,dur,extra){const c=ZCOLORS[zi];
 function planSessions(){
   const z=zonesData();if(!z)return[];
   const ph=state.plan.phase,n=state.plan.freq,goal=state.plan.goal;
-  const tlim=state.tte?state.tte.sec:null;
-  const repDur=Math.max(90,Math.min(300,Math.round((tlim||360)*0.55)));
-  const z1=zTarget(0),z2=zTarget(1),z3=zTarget(2),z5=zTarget(4);
+  const z1=zTarget(0),z2=zTarget(1),z3=zTarget(2);
   const vVO2=state.test.vPeak;
-  const rod=short=>({zi:1,title:'Rodagem aeróbia',dur:(short?30:(ph==='base'?45:ph==='transicao'?30:40))+' min',tgt:z2,steps:[
-    'Ritmo confortável, conversa fluida (RPE 3–4).','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']});
+  /* Método Contínuo (Z1–Z2): 50–80% VO2máx, >40min, 3–6x/semana. */
+  const rod=short=>({zi:1,title:'Método Contínuo — Rodagem',dur:(short?30:(ph==='base'?45:ph==='transicao'?30:40))+' min',tgt:z2,steps:[
+    'Ritmo confortável, conversa fluida (RPE 3–4) — 50–80% do VO₂máx.','Manter dentro da Z2 o tempo inteiro.','Terminar com 4 acelerações de 20 s (opcional).']});
   const rec=()=>({zi:0,title:'Recuperação ativa',dur:'25–30 min',tgt:z1,steps:[
     'Trote muito leve ou caminhada inclinada (RPE 1–2).','Objetivo: fluxo sanguíneo e recuperação — sem fadiga.']});
-  const longao=()=>({zi:1,title:'Longão',dur:(ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45)+' min',tgt:z2,steps:[
-    'Ritmo Z2 constante do início ao fim.','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']});
-  let qualidade;
-  if(ph==='base')qualidade={zi:3,title:'Fartlek leve',dur:'35–40 min',tgt:zTarget(3),steps:[
-    '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1).','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']};
-  else if(ph==='transicao')qualidade={zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
-    'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']};
-  else qualidade={zi:4,title:'Intervalos de VO₂máx',dur:'40–50 min',tgt:z5,steps:[
+  const longao=()=>({zi:1,title:'Método Contínuo — Longão',dur:(ph==='base'?70:ph==='construcao'?75:ph==='especifico'?60:45)+' min',tgt:z2,steps:[
+    'Ritmo Z2 constante do início ao fim (50–80% do VO₂máx).','Hidratar a cada 20 min.','Últimos 5–10 min podem terminar em Z3 (fase construção+).']});
+  /* Fartlek (Z1–Z2): execução prolongada com alteração frequente de ritmo, 50–80% VO2máx, >40min, ~3x/semana. */
+  const fartlek=()=>({zi:3,title:'Fartlek (Z1–Z2)',dur:'35–40 min',tgt:zTarget(3),steps:[
+    '10 min de aquecimento em Z2.','8 × (1 min em Z4 / 1 min em Z1) — alteração frequente de ritmo, sem trilho fixo.','10 min de volta à calma em Z1–Z2.','Esforço controlado — não é para esgotar.']});
+  const ritmoLivre=()=>({zi:2,title:'Ritmo livre + retas',dur:'30 min',tgt:z3,steps:[
+    'Corrida leve a moderada por sensação.','4–6 retas de 15 s progressivas.','Foco em prazer e recuperação ativa.']});
+  /* Intervalado Zona 4: entre RCP e vVO2máx, volume moderado. */
+  const intervaladoZ4=()=>({zi:3,title:'Intervalado — Zona 4',dur:'35–40 min',tgt:zTarget(3),steps:[
     '10 min de aquecimento em Z2.',
-    `${ph==='especifico'?4:5} × ${fmtMS(repDur)} a ${vVO2.toFixed(1)} km/h (100% vVO₂max).`,
-    `Pausa de ${fmtMS(repDur)} em trote leve (1:1).`,'10 min de desaquecimento em Z1.','Repetições de 55% do tlim — calibradas pelo teste de tolerância.']};
-  const tempo={zi:2,title:'Tempo run (limiar)',dur:'40–45 min',tgt:z3,steps:[
+    `6 × 3 min na Zona 4 (${zTarget(3).v}), recuperação de 2 min em Z1.`,
+    '10 min de volta à calma em Z1.','Ponte entre o tempo run e o HIIT — entre o RCP e a vVO₂máx.']});
+  /* HIIT Longo no RCP (Zona 3): 4min ~85% FCmáx / próximo ao RCP, recuperação 3min ~10% abaixo do RCP. */
+  const hiitLongoRCP=()=>({zi:2,title:'HIIT Longo — no RCP (Zona 3)',dur:'35–40 min',
+    tgt:{v:`~${z.vVT2.toFixed(1)} km/h`,pace:pace(z.vVT2),fc:z.fcVT2+' bpm'},steps:[
+    '10 min de aquecimento em Z2.',
+    `5 × 4 min a ~${z.vVT2.toFixed(1)} km/h (RCP), recuperação de 3 min a ~${(z.vVT2*0.9).toFixed(1)} km/h (10% abaixo do RCP).`,
+    '10 min de volta à calma em Z1.','Protocolo de HIIT longo baseado em evidência: eleva VO₂máx e limiar anaeróbico.']});
+  /* HIIT Curto: 20s a 100% do pico, recuperação 40s a ~10% abaixo do RCP. */
+  const hiitCurto=()=>({zi:4,title:'HIIT Curto',dur:'30–35 min',
+    tgt:{v:`${vVO2.toFixed(1)} km/h`,pace:pace(vVO2),fc:`≈ ${z.hrm} bpm`},steps:[
+    '10 min de aquecimento em Z2 + 4 acelerações de 15 s.',
+    `12–15 × 20 s a ${vVO2.toFixed(1)} km/h (vPeak), recuperação de 40 s a ~${(z.vVT2*0.9).toFixed(1)} km/h.`,
+    '8–10 min de volta à calma em Z1.','Esforços quase-máximos e curtos — foco em potência aeróbia.']});
+  /* Repeated-sprint training (RST): sprints <10s, recuperação <60s, quase-máximo. */
+  const rst=()=>({zi:4,title:'RST — Repeated Sprint Training',dur:'30–35 min',
+    tgt:{v:'sprint (quase-máximo)',pace:'—',fc:`≈ ${z.hrm} bpm`},steps:[
+    '15 min de aquecimento progressivo + 3 tiros de 10 s submáximos.',
+    '8–10 × 6 s sprint quase all-out, recuperação de 30–45 s (trote muito leve).',
+    '10 min de volta à calma.','Foco em potência/velocidade — reservado a alunos já adaptados a esforço máximo.']});
+  /* Sprint interval training (SIT): 20-30s all-out, recuperação passiva 2-4min. */
+  const sit=()=>({zi:4,title:'SIT — Sprint Interval Training',dur:'30 min',
+    tgt:{v:'all-out',pace:'—',fc:`≈ ${z.hrm} bpm`},steps:[
+    '15 min de aquecimento progressivo.',
+    '4–6 × 30 s all-out (esforço máximo), recuperação passiva/trote muito leve de 3 min.',
+    '10 min de volta à calma.','Altíssima intensidade e baixo volume — reservado a objetivo performance.']});
+  let qualidade;
+  if(ph==='base')qualidade=fartlek();
+  else if(ph==='transicao')qualidade=ritmoLivre();
+  else if(ph==='construcao')qualidade=intervaladoZ4();
+  else qualidade=(n%2===0)?hiitCurto():hiitLongoRCP();
+  const tempoAllowed=goal==='perf'&&ph==='especifico'&&state.profile.level!=='ini';
+  const tempo=tempoAllowed?((n%2===0)?sit():rst()):{zi:2,title:'Tempo run (limiar)',dur:'40–45 min',tgt:z3,steps:[
     '10 min de aquecimento em Z2.',
     (ph==='construcao'||ph==='especifico')?`3 × 8 min em Z3 alta (~${z.vVT2} km/h), pausa de 2 min trotando.`:`2 × 10 min entre Z3 e Z4 (~${z.vVT2} km/h), pausa de 2 min trotando.`,
     '10 min de volta à calma.','Sensação de “desconforto controlado” (RPE 5–7).']};
