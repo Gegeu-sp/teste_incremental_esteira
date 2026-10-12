@@ -236,7 +236,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
               <button id="btnStop" class="px-4 py-2.5 rounded-xl border border-rose-500/50 text-rose-300 text-sm hover:bg-rose-500/10 transition hidden">■ Encerrar (exaustão)</button>
             </div>
             <label class="block rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
-              <span class="text-[11px] font-bold text-rose-200">❤️ FC do último estágio (bpm)</span>
+              <span class="flex items-center justify-between gap-2"><span class="text-[11px] font-bold text-rose-200">❤️ FC do último estágio (bpm)</span><span id="stBtChip" class="bt-chip hidden num"></span></span>
               <input id="stHrNow" type="number" min="25" max="220" placeholder="—" disabled
                 class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-2xl font-bold text-center focus:border-lime outline-none disabled:opacity-40">
             </label>
@@ -637,7 +637,10 @@ function loop(ts){
     while(tmr.stageMs>=STAGE_MS){tmr.stageMs-=STAGE_MS;completeStage();tmr.stage++;beep(2);}}
   updTimerUI();tmr.raf=requestAnimationFrame(loop);
 }
-function completeStage(){tmr.stages.push({v:curSpeed(),hr:null,rpe:null,tt:null});renderStageRows();drawChart();beep(1);}
+function completeStage(){
+  /* FC do cinto Bluetooth (se conectado e com leitura recente/plausível) — editável depois */
+  const btHr=(typeof BluetoothHR!=='undefined')?BluetoothHR.stageHr():null;
+  tmr.stages.push({v:curSpeed(),hr:btHr,rpe:null,tt:null,hrSrc:btHr?'auto-bluetooth':'manual'});renderStageRows();drawChart();beep(1);}
 
 const TT_LABELS=['💬 frases','🗣 palavras','🚫 não fala'];
 function renderStageRows(){
@@ -1090,6 +1093,191 @@ buildFreqBtns();syncPlanControls();
 if(state.test)renderTestView();
 renderZones();renderTte();renderPlan();
 showTab('perfil');
+</script>
+
+<!-- ================= CINTO CARDÍACO BLUETOOTH (feature 006) ================= -->
+<style>
+  .bt-widget{position:fixed;right:12px;bottom:12px;z-index:60;display:flex;align-items:center;gap:.5rem;
+    background:linear-gradient(180deg,#141C28,#10161F);border:1px solid #243144;border-radius:9999px;
+    padding:.4rem .5rem .4rem .8rem;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:.75rem;}
+  .bt-dot{width:.55rem;height:.55rem;border-radius:9999px;background:#64748b;flex-shrink:0}
+  .bt-widget[data-st=connecting] .bt-dot{background:#fbbf24;animation:btblink 1s infinite}
+  .bt-widget[data-st=connected] .bt-dot{background:#4ade80}
+  .bt-widget[data-st=lost]{border-color:#f43f5e}
+  .bt-widget[data-st=lost] .bt-dot{background:#f43f5e;animation:btblink .6s infinite}
+  @keyframes btblink{50%{opacity:.25}}
+  .bt-heart{display:inline-block;color:#fb7185}
+  .bt-heart.beat{animation:btbeat .35s ease}
+  @keyframes btbeat{30%{transform:scale(1.35)}}
+  .bt-btn{border-radius:9999px;padding:.45rem .85rem;font-weight:700;background:#B8F03C;color:#0B0F14;min-height:36px}
+  .bt-btn.off{background:transparent;color:#cbd5e1;border:1px solid #243144}
+  .bt-chip{border-radius:9999px;padding:.05rem .5rem;font-size:.65rem;font-weight:700;background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.35)}
+  .bt-fill{margin-top:.3rem;width:100%;border-radius:.5rem;border:1px dashed rgba(251,113,133,.5);color:#fda4af;font-size:.62rem;font-weight:700;padding:.2rem .3rem}
+  .bt-fill:disabled{opacity:.35}
+  @media print{.bt-widget,.bt-fill{display:none!important}}
+</style>
+<div id="btWidget" class="bt-widget no-print" data-st="disconnected" role="status" aria-live="polite">
+  <span class="bt-dot"></span>
+  <span id="btStatusBadge" class="text-slate-300">Cinto desconectado</span>
+  <span id="liveHrDisplay" class="num font-bold text-base hidden"><span class="bt-heart">❤</span> <span id="liveHrVal">--</span><span class="text-[10px] text-slate-400"> bpm</span></span>
+  <button id="btnBtConnect" class="bt-btn" type="button">Conectar cinto</button>
+  <button id="btnBtWide" class="text-[11px] text-slate-400 hover:text-slate-200 underline px-1 py-1" type="button" title="Mostra todos os dispositivos Bluetooth ao redor se o cinto não aparecer na lista automática">Todos</button>
+</div>
+<script>
+/* Integração com cintos/monitores cardíacos BLE (GATT Heart Rate Service 0x180D).
+   100% local: nenhuma leitura sai do navegador (Princípio I). O parser
+   parseHeartRateMeasurement()/isPlausibleHr() vem de assets/calc.js. */
+const BluetoothHR=(()=>{
+  const STALE_MS=5000;
+  let device=null,chr=null,status='disconnected',bpm=null,lastAt=0,manualDisconnect=false;
+  const subs=new Set();
+  const supported=()=>!!(navigator&&navigator.bluetooth&&navigator.bluetooth.requestDevice);
+  const recent=()=>bpm!=null&&isPlausibleHr(bpm)&&(Date.now()-lastAt)<STALE_MS;
+  function set(st){status=st;render();}
+  function onValue(e){
+    const r=parseHeartRateMeasurement(e.target.value);
+    if(r.bpm==null)return;
+    bpm=r.bpm;lastAt=Date.now();
+    subs.forEach(f=>{try{f({bpm,contactDetected:r.contactDetected,rrIntervals:r.rrIntervals,timestamp:lastAt});}catch(_){}});
+    render(true);
+  }
+  async function attach(){
+    const server=await device.gatt.connect();
+    const svc=await server.getPrimaryService('heart_rate');
+    chr=await svc.getCharacteristic('heart_rate_measurement');
+    chr.addEventListener('characteristicvaluechanged',onValue);
+    await chr.startNotifications();
+    set('connected');
+  }
+  async function connect(wideScan=false){
+    if(!supported())return;
+    manualDisconnect=false;set('connecting');
+    try{
+      const options=wideScan
+        ? {acceptAllDevices:true,optionalServices:['heart_rate','battery_service']}
+        : {
+            filters:[
+              {services:['heart_rate']},
+              {namePrefix:'Magene'},
+              {namePrefix:'magene'},
+              {namePrefix:'H64'},
+              {namePrefix:'H303'},
+              {namePrefix:'HR'},
+              {namePrefix:'hr'},
+              {namePrefix:'CooSpo'},
+              {namePrefix:'Polar'},
+              {namePrefix:'Garmin'},
+              {namePrefix:'Wahoo'},
+              {namePrefix:'Heart'}
+            ],
+            optionalServices:['heart_rate','battery_service']
+          };
+      device=await navigator.bluetooth.requestDevice(options);
+      device.addEventListener('gattserverdisconnected',onDisconnected);
+      await attach();
+    }catch(err){
+      /* Usuário cancelou a janela (NotFoundError) ou falha de conexão: volta ao estado inicial */
+      device=null;chr=null;set('disconnected');
+      if(err&&err.name!=='NotFoundError')console.warn('Bluetooth:',err);
+    }
+  }
+  async function reconnect(){
+    if(!device)return connect();
+    set('connecting');
+    try{await attach();}catch(err){set('lost');}
+  }
+  function onDisconnected(){
+    chr=null;bpm=null;
+    if(manualDisconnect){device=null;set('disconnected');}
+    else set('lost'); /* cronômetro do teste continua; digitação manual permanece livre */
+  }
+  function disconnect(){
+    manualDisconnect=true;
+    try{if(device&&device.gatt.connected)device.gatt.disconnect();else onDisconnected();}catch(_){onDisconnected();}
+  }
+  const txt=(el,t)=>{if(el.textContent!==String(t))el.textContent=t;};
+  function render(beat){
+    const w=document.getElementById('btWidget');if(!w)return;
+    w.dataset.st=status;
+    const badge=document.getElementById('btStatusBadge'),live=document.getElementById('liveHrDisplay'),
+          val=document.getElementById('liveHrVal'),btn=document.getElementById('btnBtConnect'),
+          btnWide=document.getElementById('btnBtWide'),chip=document.getElementById('stBtChip');
+    if(!supported()){
+      txt(badge,'Bluetooth indisponível neste navegador · FC manual');
+      badge.title='Use Chrome/Edge (PC/Android) ou o app Bluefy no iOS para conectar o cinto.';
+      btn.classList.add('hidden');live.classList.add('hidden');if(btnWide)btnWide.classList.add('hidden');return;
+    }
+    if(btnWide){
+      btnWide.classList.toggle('hidden',status==='connected'||status==='connecting');
+    }
+    const name=device&&device.name?device.name:'cinto';
+    const labels={disconnected:'Cinto desconectado',connecting:'Conectando…',connected:name,lost:'Sinal perdido'};
+    txt(badge,labels[status]);
+    const showHr=status==='connected';
+    live.classList.toggle('hidden',!showHr);
+    if(showHr){
+      const ok=bpm!=null&&isPlausibleHr(bpm);
+      txt(val,bpm==null?'--':(ok?bpm:bpm+'?'));
+      val.style.color=(bpm!=null&&!ok)?'#fbbf24':'';
+      if(beat&&ok){const h=live.querySelector('.bt-heart');h.classList.remove('beat');void h.offsetWidth;h.classList.add('beat');}
+    }
+    btn.disabled=status==='connecting';
+    txt(btn,status==='connected'?'Desconectar':status==='lost'?'Reconectar':status==='connecting'?'…':'Conectar cinto');
+    btn.classList.toggle('off',status==='connected');
+    if(chip){
+      chip.classList.toggle('hidden',status!=='connected'&&status!=='lost');
+      txt(chip,status==='lost'?'sinal perdido · digite':(recent()?'cinto: '+bpm+' bpm':'cinto: --'));
+      chip.style.cssText=status==='lost'?'background:rgba(244,63,94,.12);color:#fda4af;border-color:rgba(244,63,94,.4)':'';
+    }
+    document.querySelectorAll('.bt-fill').forEach(b=>{b.disabled=!recent();txt(b,recent()?'❤ usar FC do cinto ('+bpm+')':'❤ FC do cinto');});
+  }
+  return{
+    isSupported:supported,connect,disconnect,reconnect,
+    getState:()=>({status,deviceName:device?device.name||null:null,currentBpm:recent()?bpm:null}),
+    subscribe(f){subs.add(f);return()=>subs.delete(f);},
+    stageHr:()=>(status==='connected'&&recent())?bpm:null,
+    render
+  };
+})();
+
+document.getElementById('btnBtConnect').addEventListener('click',()=>{
+  const s=BluetoothHR.getState().status;
+  if(s==='connected')BluetoothHR.disconnect();
+  else if(s==='lost')BluetoothHR.reconnect();
+  else BluetoothHR.connect();
+});
+document.getElementById('btnBtWide')?.addEventListener('click',()=>{
+  BluetoothHR.connect(true);
+});
+
+/* Botões de captura rápida (Triagem, Tolerância antes/depois). Os campos de
+   "depois" são re-renderizados dinamicamente, por isso o observer. */
+(function(){
+  const TARGETS=['sFc','tteFcAntes','tteFcDepois'];
+  function ensure(){
+    if(!BluetoothHR.isSupported())return;
+    TARGETS.forEach(id=>{
+      const inp=document.getElementById(id);
+      if(!inp||inp.nextElementSibling&&inp.nextElementSibling.dataset.btFill===id)return;
+      const b=document.createElement('button');
+      b.type='button';b.className='bt-fill no-print';b.dataset.btFill=id;b.id='btnCapture_'+id;
+      inp.insertAdjacentElement('afterend',b);
+    });
+    BluetoothHR.render();
+  }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-bt-fill]');if(!b)return;
+    e.preventDefault();
+    const v=BluetoothHR.getState().currentBpm;if(v==null)return;
+    const inp=document.getElementById(b.dataset.btFill);if(!inp)return;
+    inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  let pending=false;
+  new MutationObserver(()=>{if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;ensure();});})
+    .observe(document.body,{childList:true,subtree:true});
+  ensure();
+  setInterval(()=>BluetoothHR.render(),1000); /* expira leituras antigas na UI */
+})();
 </script>
 </body>
 </html>

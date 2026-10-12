@@ -107,6 +107,43 @@ function classifyGlicose(mgdl) {
   return { level: 'normal', label: 'Glicose normal' };
 }
 
+/* Faixa fisiológica plausível para leituras de FC vindas do cinto Bluetooth. */
+var HR_MIN_VALID = 30, HR_MAX_VALID = 240;
+
+function isPlausibleHr(bpm) {
+  return typeof bpm === 'number' && Number.isFinite(bpm) && bpm >= HR_MIN_VALID && bpm <= HR_MAX_VALID;
+}
+
+/* Decodifica a característica Bluetooth SIG "Heart Rate Measurement" (0x2A37).
+   Byte 0 = flags; bit0: FC em UINT16; bits1-2: contato com a pele;
+   bit3: energia gasta (UINT16); bit4: intervalos RR (UINT16, 1/1024 s). */
+function parseHeartRateMeasurement(dv) {
+  const empty = { bpm: null, contactDetected: null, energyExpended: null, rrIntervals: [] };
+  if (!dv || typeof dv.getUint8 !== 'function' || dv.byteLength < 2) return empty;
+  const flags = dv.getUint8(0);
+  let offset = 1, bpm;
+  if (flags & 0x01) {
+    if (dv.byteLength < 3) return empty;
+    bpm = dv.getUint16(1, true); offset = 3;
+  } else {
+    bpm = dv.getUint8(1); offset = 2;
+  }
+  const contactSupported = (flags & 0x04) !== 0;
+  const contactDetected = contactSupported ? (flags & 0x02) !== 0 : null;
+  let energyExpended = null;
+  if (flags & 0x08) {
+    if (dv.byteLength >= offset + 2) energyExpended = dv.getUint16(offset, true);
+    offset += 2;
+  }
+  const rrIntervals = [];
+  if (flags & 0x10) {
+    for (; offset + 1 < dv.byteLength; offset += 2) {
+      rrIntervals.push(Math.round(dv.getUint16(offset, true) * 1000 / 1024));
+    }
+  }
+  return { bpm, contactDetected, energyExpended, rrIntervals };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass, classifySpo2, classifyGlicose };
+  module.exports = { vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass, classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr };
 }

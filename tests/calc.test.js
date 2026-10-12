@@ -125,3 +125,46 @@ test('classifyGlicose respeita os limites de 70/300 mg/dL', () => {
 test('classifyGlicose é opcional: ausência de dado não quebra', () => {
   assert.equal(classifyGlicose('').level, 'sem-dado');
 });
+
+const { parseHeartRateMeasurement, isPlausibleHr } = require('../assets/calc.js');
+const dv = (bytes) => new DataView(new Uint8Array(bytes).buffer);
+
+test('parseHeartRateMeasurement: UINT8', () => {
+  const r = parseHeartRateMeasurement(dv([0x00, 72]));
+  assert.equal(r.bpm, 72);
+  assert.equal(r.contactDetected, null);
+  assert.deepEqual(r.rrIntervals, []);
+});
+
+test('parseHeartRateMeasurement: UINT16 little-endian', () => {
+  assert.equal(parseHeartRateMeasurement(dv([0x01, 185, 0])).bpm, 185);
+  assert.equal(parseHeartRateMeasurement(dv([0x01, 0x2c, 0x01])).bpm, 300);
+});
+
+test('parseHeartRateMeasurement: contato com a pele', () => {
+  assert.equal(parseHeartRateMeasurement(dv([0x06, 80])).contactDetected, true);
+  assert.equal(parseHeartRateMeasurement(dv([0x04, 80])).contactDetected, false);
+});
+
+test('parseHeartRateMeasurement: energia + intervalos RR', () => {
+  // flags: energia (0x08) + RR (0x10); bpm 60; energia 10; RR 1024 (=1000ms), 512 (=500ms)
+  const r = parseHeartRateMeasurement(dv([0x18, 60, 10, 0, 0x00, 0x04, 0x00, 0x02]));
+  assert.equal(r.bpm, 60);
+  assert.equal(r.energyExpended, 10);
+  assert.deepEqual(r.rrIntervals, [1000, 500]);
+});
+
+test('parseHeartRateMeasurement: pacotes inválidos', () => {
+  assert.equal(parseHeartRateMeasurement(null).bpm, null);
+  assert.equal(parseHeartRateMeasurement(dv([0x00])).bpm, null);
+  assert.equal(parseHeartRateMeasurement(dv([0x01, 100])).bpm, null);
+});
+
+test('isPlausibleHr: faixa 30–240', () => {
+  assert.equal(isPlausibleHr(29), false);
+  assert.equal(isPlausibleHr(30), true);
+  assert.equal(isPlausibleHr(240), true);
+  assert.equal(isPlausibleHr(241), false);
+  assert.equal(isPlausibleHr(0), false);
+  assert.equal(isPlausibleHr(null), false);
+});
