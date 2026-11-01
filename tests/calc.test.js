@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
-  classifySpo2, classifyGlicose
+  classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
+  evaluateHrSample, computeStableStageHr, assessBtSignalQuality
 } = require('../assets/calc.js');
 
 test('vo2At reproduz a tabela do protocolo (velocidade → VO2)', () => {
@@ -126,7 +127,6 @@ test('classifyGlicose é opcional: ausência de dado não quebra', () => {
   assert.equal(classifyGlicose('').level, 'sem-dado');
 });
 
-const { parseHeartRateMeasurement, isPlausibleHr } = require('../assets/calc.js');
 const dv = (bytes) => new DataView(new Uint8Array(bytes).buffer);
 
 test('parseHeartRateMeasurement: UINT8', () => {
@@ -167,4 +167,131 @@ test('isPlausibleHr: faixa 30–240', () => {
   assert.equal(isPlausibleHr(241), false);
   assert.equal(isPlausibleHr(0), false);
   assert.equal(isPlausibleHr(null), false);
+});
+
+/* ================= FEATURE 007: FIDEDIGNIDADE E ISOLAMENTO BLUETOOTH ================= */
+
+test('evaluateHrSample: rejeita pacotes sem contato com a pele (contactDetected === false)', () => {
+  const r = evaluateHrSample({ bpm: 145, contactDetected: false, timestamp: 1000 }, []);
+  assert.equal(r.accepted, false);
+  assert.equal(r.reason, 'no-contact');
+});
+
+test('evaluateHrSample: rejeita leituras fora da faixa fisiológica (30–240 bpm)', () => {
+  assert.equal(evaluateHrSample({ bpm: 0, contactDetected: true, timestamp: 1000 }, []).reason, 'out-of-range');
+  assert.equal(evaluateHrSample({ bpm: 255, contactDetected: true, timestamp: 1000 }, []).reason, 'out-of-range');
+});
+
+test('evaluateHrSample: filtra picos espúrios isolados (> 25 bpm em <= 5s), mas confirma transição sustentada em 3 amostras', () => {
+  const valid = [{ bpm: 150, timestamp: 1000 }];
+
+  // 1º salto abrupto (+40 bpm em 1s) -> rejeitado como spike
+  const s1 = evaluateHrSample({ bpm: 190, contactDetected: true, timestamp: 2000 }, valid, []);
+  assert.equal(s1.accepted, false);
+  assert.equal(s1.reason, 'spike');
+  assert.equal(s1.nextPendingSpikes.length, 1);
+
+  // Se voltar ao normal no segundo seguinte (152 bpm), aceita normalmente e limpa spikes pendentes
+  const normal = evaluateHrSample({ bpm: 152, contactDetected: true, timestamp: 3000 }, valid, s1.nextPendingSpikes);
+  assert.equal(normal.accepted, true);
+  assert.equal(normal.reason, 'ok');
+  assert.equal(normal.nextPendingSpikes.length, 0);
+
+  // Porém, se o novo patamar (188–192 bpm) se sustentar por 3 amostras consecutivas:
+  const s2 = evaluateHrSample({ bpm: 188, contactDetected: true, timestamp: 3000 }, valid, s1.nextPendingSpikes);
+  assert.equal(s2.accepted, false);
+  assert.equal(s2.reason, 'spike');
+  assert.equal(s2.nextPendingSpikes.length, 2);
+
+  const s3 = evaluateHrSample({ bpm: 191, contactDetected: true, timestamp: 4000 }, valid, s2.nextPendingSpikes);
+  assert.equal(s3.accepted, true);
+  assert.equal(s3.reason, 'confirmed-transition');
+  assert.equal(s3.bpm, 191);
+  assert.equal(s3.nextPendingSpikes.length, 0);
+});
+
+test('computeStableStageHr: calcula média aparada (trimmed-mean) nos últimos 15s eliminando outliers residuais', () => {
+  const now = 120000;
+  // 8 amostras nos últimos 15s: 6 estáveis em ~160 bpm + 1 baixa (140) + 1 alta (184)
+  const samples = [
+    { bpm: 140, timestamp: now - 14000 },
+    { bpm: 159, timestamp: now - 12000 },
+    { bpm: 160, timestamp: now - 10000 },
+    { bpm: 160, timestamp: now - 8000 },
+    { bpm: 161, timestamp: now - 6000 },
+    { bpm: 160, timestamp: now - 4000 },
+    { bpm: 184, timestamp: now - 2000 },
+    { bpm: 160, timestamp: now - 1000 }
+  ];
+  const res = computeStableStageHr(samples, now);
+  assert.equal(res.method, 'trimmed-mean');
+  assert.equal(res.sampleCount, 8);
+  assert.equal(res.bpm, 160);
+});
+
+test('computeStableStageHr: usa mediana para 3–4 amostras, média para 1–2 amostras e rejeita janela expirada (> 6s)', () => {
+  const now = 60000;
+  const three = [
+    { bpm: 150, timestamp: now - 3000 },
+    { bpm: 174, timestamp: now - 2000 },
+    { bpm: 152, timestamp: now - 1000 }
+  ];
+  const rMed = computeStableStageHr(three, now);
+  assert.equal(rMed.method, 'median');
+  assert.equal(rMed.bpm, 152);
+
+  const two = [
+    { bpm: 148, timestamp: now - 2000 },
+    { bpm: 150, timestamp: now - 1000 }
+  ];
+  const rMean = computeStableStageHr(two, now);
+  assert.equal(rMean.method, 'recent-mean');
+  assert.equal(rMean.bpm, 149);
+
+  const stale = [{ bpm: 150, timestamp: now - 7000 }];
+  const rStale = computeStableStageHr(stale, now);
+  assert.equal(rStale.method, 'stale');
+  assert.equal(rStale.bpm, null);
+
+  const empty = computeStableStageHr([], now);
+  assert.equal(empty.method, 'none');
+  assert.equal(empty.bpm, null);
+});
+
+test('assessBtSignalQuality: diagnostica conexões, aparelhos incompatíveis, reconexão, mau contato e sinal fidedigno', () => {
+  const now = 50000;
+  const valid = [
+    { bpm: 154, timestamp: now - 3000 },
+    { bpm: 155, timestamp: now - 2000 },
+    { bpm: 155, timestamp: now - 1000 }
+  ];
+
+  // US1: aparelho incompatível sem serviço 0x180D
+  const unsup = assessBtSignalQuality({ status: 'disconnected', lastDisconnectReason: 'unsupported-device' }, now);
+  assert.equal(unsup.quality, 'unsupported-device');
+  assert.equal(unsup.reliable, false);
+
+  // US1/US3: reconectando automaticamente ao mesmo sensor
+  const recon = assessBtSignalQuality({ status: 'reconnecting', autoReconnectAttempts: 2, maxReconnectAttempts: 3, validSamples: valid }, now);
+  assert.equal(recon.quality, 'reconnecting');
+  assert.equal(recon.reliable, false);
+  assert.ok(recon.label.includes('2/3'));
+
+  // US3: mau contato com a pele
+  const noContact = assessBtSignalQuality({ status: 'connected', lastContactDetected: false, validSamples: valid }, now);
+  assert.equal(noContact.quality, 'no-contact');
+  assert.equal(noContact.reliable, false);
+  assert.equal(noContact.stageBpm, null);
+
+  // US3: sinal com ruído filtrado porém confiável
+  const noisy = assessBtSignalQuality({ status: 'connected', lastContactDetected: true, validSamples: valid, recentSpikeCount: 2 }, now);
+  assert.equal(noisy.quality, 'noisy');
+  assert.equal(noisy.reliable, true);
+  assert.equal(noisy.stageBpm, 155);
+
+  // US3: sinal fidedigno e estável
+  const stable = assessBtSignalQuality({ status: 'connected', lastContactDetected: true, validSamples: valid, recentSpikeCount: 0 }, now);
+  assert.equal(stable.quality, 'stable');
+  assert.equal(stable.reliable, true);
+  assert.equal(stable.stageBpm, 155);
 });

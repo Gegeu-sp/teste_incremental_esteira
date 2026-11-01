@@ -1095,156 +1095,383 @@ renderZones();renderTte();renderPlan();
 showTab('perfil');
 </script>
 
-<!-- ================= CINTO CARDÍACO BLUETOOTH (feature 006) ================= -->
+<!-- ================= CINTO CARDÍACO BLUETOOTH (features 006 & 007) ================= -->
 <style>
   .bt-widget{position:fixed;right:12px;bottom:12px;z-index:60;display:flex;align-items:center;gap:.5rem;
     background:linear-gradient(180deg,#141C28,#10161F);border:1px solid #243144;border-radius:9999px;
-    padding:.4rem .5rem .4rem .8rem;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:.75rem;}
+    padding:.4rem .5rem .4rem .8rem;box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:.75rem;max-width:calc(100vw - 24px);flex-wrap:wrap}
   .bt-dot{width:.55rem;height:.55rem;border-radius:9999px;background:#64748b;flex-shrink:0}
-  .bt-widget[data-st=connecting] .bt-dot{background:#fbbf24;animation:btblink 1s infinite}
+  .bt-widget[data-st=connecting] .bt-dot,.bt-widget[data-st=reconnecting] .bt-dot{background:#fbbf24;animation:btblink 1s infinite}
   .bt-widget[data-st=connected] .bt-dot{background:#4ade80}
-  .bt-widget[data-st=lost]{border-color:#f43f5e}
-  .bt-widget[data-st=lost] .bt-dot{background:#f43f5e;animation:btblink .6s infinite}
+  .bt-widget[data-st=connected][data-quality=noisy] .bt-dot{background:#38bdf8}
+  .bt-widget[data-st=connected][data-quality=no-contact] .bt-dot,.bt-widget[data-st=connected][data-quality=stale] .bt-dot{background:#fbbf24;animation:btblink .8s infinite}
+  .bt-widget[data-st=connected][data-quality=no-contact]{border-color:#f59e0b}
+  .bt-widget[data-st=lost],.bt-widget[data-quality=unsupported-device]{border-color:#f43f5e}
+  .bt-widget[data-st=lost] .bt-dot,.bt-widget[data-quality=unsupported-device] .bt-dot{background:#f43f5e;animation:btblink .6s infinite}
   @keyframes btblink{50%{opacity:.25}}
   .bt-heart{display:inline-block;color:#fb7185}
   .bt-heart.beat{animation:btbeat .35s ease}
   @keyframes btbeat{30%{transform:scale(1.35)}}
   .bt-btn{border-radius:9999px;padding:.45rem .85rem;font-weight:700;background:#B8F03C;color:#0B0F14;min-height:36px}
   .bt-btn.off{background:transparent;color:#cbd5e1;border:1px solid #243144}
+  .bt-qual{font-size:.65rem;padding:.08rem .45rem;border-radius:9999px;border:1px solid rgba(148,163,184,.25);color:#94a3b8;white-space:nowrap}
+  .bt-qual[data-q=stable]{background:rgba(74,222,128,.12);color:#4ade80;border-color:rgba(74,222,128,.35)}
+  .bt-qual[data-q=noisy]{background:rgba(56,189,248,.12);color:#7dd3fc;border-color:rgba(56,189,248,.35)}
+  .bt-qual[data-q=no-contact],.bt-qual[data-q=stale],.bt-qual[data-q=reconnecting]{background:rgba(251,191,36,.12);color:#fcd34d;border-color:rgba(251,191,36,.4)}
+  .bt-qual[data-q=lost],.bt-qual[data-q=unsupported-device]{background:rgba(244,63,94,.12);color:#fda4af;border-color:rgba(244,63,94,.4)}
   .bt-chip{border-radius:9999px;padding:.05rem .5rem;font-size:.65rem;font-weight:700;background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.35)}
   .bt-fill{margin-top:.3rem;width:100%;border-radius:.5rem;border:1px dashed rgba(251,113,133,.5);color:#fda4af;font-size:.62rem;font-weight:700;padding:.2rem .3rem}
   .bt-fill:disabled{opacity:.35}
   @media print{.bt-widget,.bt-fill{display:none!important}}
 </style>
-<div id="btWidget" class="bt-widget no-print" data-st="disconnected" role="status" aria-live="polite">
+<div id="btWidget" class="bt-widget no-print" data-st="disconnected" data-quality="disconnected" role="status" aria-live="polite">
   <span class="bt-dot"></span>
-  <span id="btStatusBadge" class="text-slate-300">Cinto desconectado</span>
+  <span id="btStatusBadge" class="text-slate-300 font-medium">Cinto desconectado</span>
+  <span id="btQualityBadge" class="bt-qual hidden" data-q="disconnected">Sinal fidedigno</span>
   <span id="liveHrDisplay" class="num font-bold text-base hidden"><span class="bt-heart">❤</span> <span id="liveHrVal">--</span><span class="text-[10px] text-slate-400"> bpm</span></span>
   <button id="btnBtConnect" class="bt-btn" type="button">Conectar cinto</button>
-  <button id="btnBtWide" class="text-[11px] text-slate-400 hover:text-slate-200 underline px-1 py-1" type="button" title="Mostra todos os dispositivos Bluetooth ao redor se o cinto não aparecer na lista automática">Todos</button>
+  <button id="btnBtForget" class="text-[11px] text-slate-400 hover:text-rose-300 underline px-1 py-1 hidden" type="button" title="Destravar vínculo atual e selecionar outro sensor cardíaco">Trocar</button>
+  <button id="btnBtWide" class="text-[11px] text-slate-400 hover:text-slate-200 underline px-1 py-1" type="button" title="Mostra todos os dispositivos Bluetooth ao redor se o cinto não aparecer na lista filtrada">Todos</button>
 </div>
 <script>
 /* Integração com cintos/monitores cardíacos BLE (GATT Heart Rate Service 0x180D).
-   100% local: nenhuma leitura sai do navegador (Princípio I). O parser
-   parseHeartRateMeasurement()/isPlausibleHr() vem de assets/calc.js. */
+   100% local: nenhuma leitura sai do navegador (Princípio I). As funções puras
+   parseHeartRateMeasurement, isPlausibleHr, evaluateHrSample, computeStableStageHr
+   e assessBtSignalQuality vêm de assets/calc.js (features 006 & 007). */
 const BluetoothHR=(()=>{
-  const STALE_MS=5000;
-  let device=null,chr=null,status='disconnected',bpm=null,lastAt=0,manualDisconnect=false;
+  const ROLLING_WINDOW_MS=20000;
+  const SPIKE_TRACK_MS=10000;
+  const BACKOFF_MS=[800,2000,4500];
+  let device=null,chr=null,status='disconnected',manualDisconnect=false,reconnectingLoop=false;
+  /* DeviceSessionLock (US1): vínculo exclusivo ao cinto do aluno na sessão */
+  let boundDeviceId=null,boundDeviceName=null,boundShortTag=null,isLocked=false;
+  let autoReconnectAttempts=0,maxReconnectAttempts=3,lastDisconnectReason='none';
+  /* RollingHrWindow (US2): histórico deslizante validado e filtro de artefatos */
+  let validSamples=[],pendingSpikes=[],rejectedSpikeTimes=[],lastContactDetected=null,lastRawBpm=null;
   const subs=new Set();
   const supported=()=>!!(navigator&&navigator.bluetooth&&navigator.bluetooth.requestDevice);
-  const recent=()=>bpm!=null&&isPlausibleHr(bpm)&&(Date.now()-lastAt)<STALE_MS;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+  function deriveShortTag(dev){
+    if(!dev)return null;
+    const raw=(dev.id||dev.name||'').replace(/[^a-zA-Z0-9]/g,'');
+    return raw.length>=4?'#'+raw.slice(-4).toUpperCase():null;
+  }
+  function pruneBuffers(now){
+    validSamples=validSamples.filter(s=>(now-s.timestamp)<=ROLLING_WINDOW_MS);
+    pendingSpikes=pendingSpikes.filter(p=>(now-p.timestamp)<=6000);
+    rejectedSpikeTimes=rejectedSpikeTimes.filter(t=>(now-t)<=SPIKE_TRACK_MS);
+  }
+  function getDiagnosis(now=Date.now()){
+    pruneBuffers(now);
+    return assessBtSignalQuality({
+      status,
+      lastDisconnectReason,
+      lastContactDetected,
+      validSamples,
+      recentSpikeCount:rejectedSpikeTimes.length,
+      autoReconnectAttempts,
+      maxReconnectAttempts
+    },now);
+  }
   function set(st){status=st;render();}
   function onValue(e){
+    const now=Date.now();
     const r=parseHeartRateMeasurement(e.target.value);
-    if(r.bpm==null)return;
-    bpm=r.bpm;lastAt=Date.now();
-    subs.forEach(f=>{try{f({bpm,contactDetected:r.contactDetected,rrIntervals:r.rrIntervals,timestamp:lastAt});}catch(_){}});
-    render(true);
+    if(r.bpm==null&&r.contactDetected===null)return;
+    lastRawBpm=r.bpm;
+    lastContactDetected=r.contactDetected;
+    pruneBuffers(now);
+    const ev=evaluateHrSample(
+      {bpm:r.bpm,contactDetected:r.contactDetected,rrIntervals:r.rrIntervals,timestamp:now},
+      validSamples,
+      pendingSpikes
+    );
+    pendingSpikes=ev.nextPendingSpikes;
+    if(ev.accepted){
+      validSamples.push({bpm:ev.bpm,timestamp:now,rrIntervals:r.rrIntervals});
+    }else if(ev.reason==='spike'){
+      rejectedSpikeTimes.push(now);
+    }
+    const diag=getDiagnosis(now);
+    subs.forEach(f=>{
+      try{
+        f({
+          bpm:diag.displayBpm,
+          rawBpm:r.bpm,
+          stageBpm:diag.stageBpm,
+          accepted:ev.accepted,
+          reason:ev.reason,
+          quality:diag.quality,
+          contactDetected:r.contactDetected,
+          rrIntervals:r.rrIntervals,
+          timestamp:now
+        });
+      }catch(_){}
+    });
+    render(ev.accepted);
   }
   async function attach(){
+    if(!device)throw new Error('Sem dispositivo selecionado');
+    /* Garante isolamento: nunca anexa a um dispositivo diferente do vinculado na sessão */
+    if(isLocked&&boundDeviceId&&device.id&&device.id!==boundDeviceId){
+      throw new Error('Dispositivo diferente do sensor vinculado à sessão');
+    }
     const server=await device.gatt.connect();
-    const svc=await server.getPrimaryService('heart_rate');
-    chr=await svc.getCharacteristic('heart_rate_measurement');
+    let svc,characteristic;
+    try{
+      svc=await server.getPrimaryService('heart_rate');
+      characteristic=await svc.getCharacteristic('heart_rate_measurement');
+    }catch(svcErr){
+      /* US1 Edge Case: aparelho selecionado no modo amplo não possui serviço 0x180D */
+      try{if(device.gatt.connected)device.gatt.disconnect();}catch(_){}
+      const err=new Error('Aparelho não suporta o serviço de frequência cardíaca (0x180D)');
+      err.code='UNSUPPORTED_HR_SERVICE';
+      throw err;
+    }
+    if(chr){try{chr.removeEventListener('characteristicvaluechanged',onValue);}catch(_){}}
+    chr=characteristic;
     chr.addEventListener('characteristicvaluechanged',onValue);
     await chr.startNotifications();
+    boundDeviceId=device.id||boundDeviceId||'locked-session-sensor';
+    boundDeviceName=device.name||boundDeviceName||'Cinto cardíaco';
+    boundShortTag=deriveShortTag(device);
+    isLocked=true;
+    autoReconnectAttempts=0;
+    lastDisconnectReason='none';
     set('connected');
   }
   async function connect(wideScan=false){
     if(!supported())return;
-    manualDisconnect=false;set('connecting');
+    /* Se já houver sensor vinculado na sessão e não for busca ampla explícita, reconecta ao mesmo */
+    if(isLocked&&device&&!wideScan){
+      return reconnect();
+    }
+    manualDisconnect=false;
+    lastDisconnectReason='none';
+    set('connecting');
     try{
+      /* US1 (T008): Filtros estritos priorizando serviço 0x180D e prefixos dedicados de monitores cardíacos */
       const options=wideScan
         ? {acceptAllDevices:true,optionalServices:['heart_rate','battery_service']}
         : {
             filters:[
               {services:['heart_rate']},
-              {namePrefix:'Magene'},
-              {namePrefix:'magene'},
-              {namePrefix:'H64'},
-              {namePrefix:'H303'},
-              {namePrefix:'HR'},
-              {namePrefix:'hr'},
-              {namePrefix:'CooSpo'},
               {namePrefix:'Polar'},
               {namePrefix:'Garmin'},
               {namePrefix:'Wahoo'},
-              {namePrefix:'Heart'}
+              {namePrefix:'Magene'},
+              {namePrefix:'magene'},
+              {namePrefix:'CooSpo'},
+              {namePrefix:'Decathlon'},
+              {namePrefix:'Kalenji'},
+              {namePrefix:'Geonaute'},
+              {namePrefix:'H64'},
+              {namePrefix:'H303'},
+              {namePrefix:'TICKR'},
+              {namePrefix:'HRM'}
             ],
             optionalServices:['heart_rate','battery_service']
           };
-      device=await navigator.bluetooth.requestDevice(options);
+      const selected=await navigator.bluetooth.requestDevice(options);
+      if(device&&device!==selected){
+        try{device.removeEventListener('gattserverdisconnected',onDisconnected);}catch(_){}
+      }
+      device=selected;
+      device.removeEventListener('gattserverdisconnected',onDisconnected);
       device.addEventListener('gattserverdisconnected',onDisconnected);
       await attach();
     }catch(err){
-      /* Usuário cancelou a janela (NotFoundError) ou falha de conexão: volta ao estado inicial */
-      device=null;chr=null;set('disconnected');
+      chr=null;
+      if(err&&err.code==='UNSUPPORTED_HR_SERVICE'){
+        device=null;isLocked=false;boundDeviceId=null;boundDeviceName=null;boundShortTag=null;
+        lastDisconnectReason='unsupported-device';
+        set('disconnected');
+        return;
+      }
+      if(!isLocked){device=null;}
+      set(isLocked?'lost':'disconnected');
       if(err&&err.name!=='NotFoundError')console.warn('Bluetooth:',err);
     }
   }
   async function reconnect(){
-    if(!device)return connect();
-    set('connecting');
-    try{await attach();}catch(err){set('lost');}
+    if(!device||!isLocked)return connect();
+    manualDisconnect=false;
+    set('reconnecting');
+    try{
+      await attach();
+    }catch(err){
+      lastDisconnectReason='signal-drop';
+      set('lost');
+    }
   }
-  function onDisconnected(){
-    chr=null;bpm=null;
-    if(manualDisconnect){device=null;set('disconnected');}
-    else set('lost'); /* cronômetro do teste continua; digitação manual permanece livre */
+  async function onDisconnected(){
+    chr=null;
+    if(manualDisconnect){
+      set('disconnected');
+      return;
+    }
+    /* US3 (T016): Reconexão automática silenciosa com backoff exclusivamente ao mesmo sensor vinculado */
+    if(!device||!isLocked||reconnectingLoop){
+      if(!reconnectingLoop){lastDisconnectReason='signal-drop';set('lost');}
+      return;
+    }
+    reconnectingLoop=true;
+    for(let i=0;i<BACKOFF_MS.length;i++){
+      if(manualDisconnect||!device||!isLocked)break;
+      autoReconnectAttempts=i+1;
+      set('reconnecting');
+      await sleep(BACKOFF_MS[i]);
+      if(manualDisconnect||!device||!isLocked)break;
+      if(device.gatt&&device.gatt.connected){
+        reconnectingLoop=false;autoReconnectAttempts=0;set('connected');return;
+      }
+      try{
+        await attach();
+        reconnectingLoop=false;
+        return;
+      }catch(_){
+        /* Prossegue para próxima tentativa de backoff */
+      }
+    }
+    reconnectingLoop=false;
+    autoReconnectAttempts=0;
+    if(!manualDisconnect){
+      lastDisconnectReason='signal-drop';
+      set('lost'); /* cronômetro do teste continua; digitação manual permanece livre */
+    }
   }
-  function disconnect(){
+  function disconnect(forgetDevice=true){
     manualDisconnect=true;
-    try{if(device&&device.gatt.connected)device.gatt.disconnect();else onDisconnected();}catch(_){onDisconnected();}
+    reconnectingLoop=false;
+    autoReconnectAttempts=0;
+    if(forgetDevice){
+      isLocked=false;boundDeviceId=null;boundDeviceName=null;boundShortTag=null;
+      validSamples=[];pendingSpikes=[];rejectedSpikeTimes=[];lastContactDetected=null;lastRawBpm=null;
+      lastDisconnectReason='manual';
+    }
+    try{
+      if(device&&device.gatt&&device.gatt.connected)device.gatt.disconnect();
+    }catch(_){}
+    if(forgetDevice)device=null;
+    chr=null;
+    set('disconnected');
   }
-  const txt=(el,t)=>{if(el.textContent!==String(t))el.textContent=t;};
+  const txt=(el,t)=>{if(el&&el.textContent!==String(t))el.textContent=t;};
   function render(beat){
     const w=document.getElementById('btWidget');if(!w)return;
+    const diag=getDiagnosis(Date.now());
     w.dataset.st=status;
-    const badge=document.getElementById('btStatusBadge'),live=document.getElementById('liveHrDisplay'),
-          val=document.getElementById('liveHrVal'),btn=document.getElementById('btnBtConnect'),
+    w.dataset.quality=diag.quality;
+    const badge=document.getElementById('btStatusBadge'),qual=document.getElementById('btQualityBadge'),
+          live=document.getElementById('liveHrDisplay'),val=document.getElementById('liveHrVal'),
+          btn=document.getElementById('btnBtConnect'),btnForget=document.getElementById('btnBtForget'),
           btnWide=document.getElementById('btnBtWide'),chip=document.getElementById('stBtChip');
     if(!supported()){
       txt(badge,'Bluetooth indisponível neste navegador · FC manual');
       badge.title='Use Chrome/Edge (PC/Android) ou o app Bluefy no iOS para conectar o cinto.';
-      btn.classList.add('hidden');live.classList.add('hidden');if(btnWide)btnWide.classList.add('hidden');return;
+      btn.classList.add('hidden');live.classList.add('hidden');
+      if(qual)qual.classList.add('hidden');
+      if(btnForget)btnForget.classList.add('hidden');
+      if(btnWide)btnWide.classList.add('hidden');
+      return;
     }
     if(btnWide){
-      btnWide.classList.toggle('hidden',status==='connected'||status==='connecting');
+      btnWide.classList.toggle('hidden',status==='connected'||status==='connecting'||status==='reconnecting');
     }
-    const name=device&&device.name?device.name:'cinto';
-    const labels={disconnected:'Cinto desconectado',connecting:'Conectando…',connected:name,lost:'Sinal perdido'};
-    txt(badge,labels[status]);
-    const showHr=status==='connected';
+    if(btnForget){
+      btnForget.classList.toggle('hidden',!isLocked||(status==='connecting'||status==='reconnecting'));
+    }
+    const devLabel=boundDeviceName?(boundShortTag?`${boundDeviceName} ${boundShortTag}`:boundDeviceName):'cinto';
+    if(status==='connected'){
+      txt(badge,devLabel+' 🔒');
+      badge.title='Sensor vinculado exclusivamente a esta sessão (protegido contra colisão com outros cintos)';
+    }else if(status==='reconnecting'){
+      txt(badge,devLabel);
+    }else if(status==='lost'){
+      txt(badge,devLabel+' · sinal perdido');
+    }else if(status==='connecting'){
+      txt(badge,'Conectando…');
+    }else{
+      txt(badge,diag.quality==='unsupported-device'?diag.label:'Cinto desconectado');
+    }
+    if(qual){
+      const showQual=status==='connected'||status==='reconnecting'||status==='lost';
+      qual.classList.toggle('hidden',!showQual);
+      if(showQual){
+        qual.dataset.q=diag.quality;
+        txt(qual,diag.label);
+      }
+    }
+    const showHr=status==='connected'||(status==='reconnecting'&&diag.displayBpm!=null);
     live.classList.toggle('hidden',!showHr);
     if(showHr){
-      const ok=bpm!=null&&isPlausibleHr(bpm);
-      txt(val,bpm==null?'--':(ok?bpm:bpm+'?'));
-      val.style.color=(bpm!=null&&!ok)?'#fbbf24':'';
+      const shown=diag.displayBpm!=null?diag.displayBpm:lastRawBpm;
+      const ok=diag.reliable&&shown!=null&&isPlausibleHr(shown);
+      txt(val,shown==null?'--':(ok?shown:shown+'?'));
+      val.style.color=(shown!=null&&!ok)?'#fbbf24':'';
       if(beat&&ok){const h=live.querySelector('.bt-heart');h.classList.remove('beat');void h.offsetWidth;h.classList.add('beat');}
     }
-    btn.disabled=status==='connecting';
-    txt(btn,status==='connected'?'Desconectar':status==='lost'?'Reconectar':status==='connecting'?'…':'Conectar cinto');
+    btn.disabled=status==='connecting'||status==='reconnecting';
+    txt(btn,status==='connected'?'Desconectar':status==='lost'?'Reconectar':(status==='connecting'||status==='reconnecting')?'…':'Conectar cinto');
     btn.classList.toggle('off',status==='connected');
     if(chip){
-      chip.classList.toggle('hidden',status!=='connected'&&status!=='lost');
-      txt(chip,status==='lost'?'sinal perdido · digite':(recent()?'cinto: '+bpm+' bpm':'cinto: --'));
-      chip.style.cssText=status==='lost'?'background:rgba(244,63,94,.12);color:#fda4af;border-color:rgba(244,63,94,.4)':'';
+      const showChip=status==='connected'||status==='reconnecting'||status==='lost';
+      chip.classList.toggle('hidden',!showChip);
+      if(status==='lost'){
+        txt(chip,'sinal perdido · digite FC');
+        chip.style.cssText='background:rgba(244,63,94,.12);color:#fda4af;border-color:rgba(244,63,94,.4)';
+      }else if(diag.quality==='no-contact'){
+        txt(chip,'mau contato · ajuste o cinto');
+        chip.style.cssText='background:rgba(251,191,36,.12);color:#fcd34d;border-color:rgba(251,191,36,.4)';
+      }else if(diag.reliable&&diag.stageBpm!=null){
+        txt(chip,`cinto: ${diag.displayBpm} bpm · estágio(15s): ${diag.stageBpm} bpm`);
+        chip.style.cssText='';
+      }else{
+        txt(chip,'cinto: aguardando leitura fidedigna…');
+        chip.style.cssText='background:rgba(251,191,36,.12);color:#fcd34d;border-color:rgba(251,191,36,.4)';
+      }
     }
-    document.querySelectorAll('.bt-fill').forEach(b=>{b.disabled=!recent();txt(b,recent()?'❤ usar FC do cinto ('+bpm+')':'❤ FC do cinto');});
+    document.querySelectorAll('.bt-fill').forEach(b=>{
+      b.disabled=!diag.reliable||diag.stageBpm==null;
+      txt(b,diag.reliable&&diag.stageBpm!=null?`❤ usar FC fidedigna (${diag.stageBpm} bpm)`:'❤ FC do cinto');
+    });
   }
   return{
     isSupported:supported,connect,disconnect,reconnect,
-    getState:()=>({status,deviceName:device?device.name||null:null,currentBpm:recent()?bpm:null}),
+    getState:()=>{
+      const diag=getDiagnosis(Date.now());
+      return{
+        status,
+        quality:diag.quality,
+        qualityLabel:diag.label,
+        reliable:diag.reliable,
+        deviceName:boundDeviceName,
+        boundDeviceId,
+        boundShortTag,
+        isLocked,
+        currentBpm:diag.reliable?diag.displayBpm:null,
+        stageBpm:diag.reliable?diag.stageBpm:null
+      };
+    },
     subscribe(f){subs.add(f);return()=>subs.delete(f);},
-    stageHr:()=>(status==='connected'&&recent())?bpm:null,
+    stageHr:()=>{
+      const diag=getDiagnosis(Date.now());
+      return(diag.reliable&&diag.stageBpm!=null)?diag.stageBpm:null;
+    },
     render
   };
 })();
 
 document.getElementById('btnBtConnect').addEventListener('click',()=>{
   const s=BluetoothHR.getState().status;
-  if(s==='connected')BluetoothHR.disconnect();
+  if(s==='connected')BluetoothHR.disconnect(true);
   else if(s==='lost')BluetoothHR.reconnect();
   else BluetoothHR.connect();
+});
+document.getElementById('btnBtForget')?.addEventListener('click',()=>{
+  BluetoothHR.disconnect(true);
+  BluetoothHR.connect(false);
 });
 document.getElementById('btnBtWide')?.addEventListener('click',()=>{
   BluetoothHR.connect(true);
@@ -1268,7 +1495,7 @@ document.getElementById('btnBtWide')?.addEventListener('click',()=>{
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-bt-fill]');if(!b)return;
     e.preventDefault();
-    const v=BluetoothHR.getState().currentBpm;if(v==null)return;
+    const st=BluetoothHR.getState();const v=st.stageBpm??st.currentBpm;if(v==null)return;
     const inp=document.getElementById(b.dataset.btFill);if(!inp)return;
     inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));
   });

@@ -109,9 +109,216 @@ function classifyGlicose(mgdl) {
 
 /* Faixa fisiológica plausível para leituras de FC vindas do cinto Bluetooth. */
 var HR_MIN_VALID = 30, HR_MAX_VALID = 240;
+var HR_MAX_DELTA_BPM = 25,
+    HR_SPIKE_WINDOW_MS = 5000,
+    HR_CONFIRM_WINDOW_MS = 6000,
+    HR_MIN_CONFIRMATIONS = 3,
+    HR_CONFIRM_TOLERANCE_BPM = 15,
+    HR_STAGE_WINDOW_MS = 15000,
+    HR_STALE_MS = 6000;
 
 function isPlausibleHr(bpm) {
   return typeof bpm === 'number' && Number.isFinite(bpm) && bpm >= HR_MIN_VALID && bpm <= HR_MAX_VALID;
+}
+
+/* Avalia uma amostra individual de FC contra contato com a pele, faixa humana (30-240 bpm)
+   e salto fisiológico instantâneo (spike > 25 bpm em <= 5s), confirmando transições reais
+   quando sustentadas por 3 leituras consecutivas em até 6s (feature 007). */
+function evaluateHrSample(sample, recentValidSamples, pendingSpikes, options) {
+  const opts = options || {};
+  const maxDeltaBpm = opts.maxDeltaBpm != null ? opts.maxDeltaBpm : HR_MAX_DELTA_BPM;
+  const spikeWindowMs = opts.spikeWindowMs != null ? opts.spikeWindowMs : HR_SPIKE_WINDOW_MS;
+  const confirmWindowMs = opts.confirmWindowMs != null ? opts.confirmWindowMs : HR_CONFIRM_WINDOW_MS;
+  const minConfirmations = opts.minConfirmations != null ? opts.minConfirmations : HR_MIN_CONFIRMATIONS;
+  const confirmToleranceBpm = opts.confirmToleranceBpm != null ? opts.confirmToleranceBpm : HR_CONFIRM_TOLERANCE_BPM;
+  const spikes = Array.isArray(pendingSpikes) ? pendingSpikes : [];
+
+  if (!sample || sample.contactDetected === false) {
+    return {
+      accepted: false,
+      reason: 'no-contact',
+      bpm: sample && sample.bpm != null ? sample.bpm : null,
+      nextPendingSpikes: spikes
+    };
+  }
+  if (!isPlausibleHr(sample.bpm)) {
+    return {
+      accepted: false,
+      reason: 'out-of-range',
+      bpm: sample.bpm != null ? sample.bpm : null,
+      nextPendingSpikes: spikes
+    };
+  }
+
+  const ts = typeof sample.timestamp === 'number' ? sample.timestamp : Date.now();
+  const valids = Array.isArray(recentValidSamples) ? recentValidSamples : [];
+  const lastValid = valids.length > 0 ? valids[valids.length - 1] : null;
+
+  if (
+    lastValid &&
+    isPlausibleHr(lastValid.bpm) &&
+    typeof lastValid.timestamp === 'number' &&
+    (ts - lastValid.timestamp) >= 0 &&
+    (ts - lastValid.timestamp) <= spikeWindowMs
+  ) {
+    const delta = Math.abs(sample.bpm - lastValid.bpm);
+    if (delta > maxDeltaBpm) {
+      const matchingSpikes = spikes.filter(
+        p => p && typeof p.timestamp === 'number' &&
+             (ts - p.timestamp) >= 0 &&
+             (ts - p.timestamp) <= confirmWindowMs &&
+             Math.abs(sample.bpm - p.bpm) <= confirmToleranceBpm
+      );
+      if (matchingSpikes.length + 1 >= minConfirmations) {
+        return {
+          accepted: true,
+          reason: 'confirmed-transition',
+          bpm: sample.bpm,
+          nextPendingSpikes: []
+        };
+      }
+      return {
+        accepted: false,
+        reason: 'spike',
+        bpm: sample.bpm,
+        nextPendingSpikes: matchingSpikes.concat([{ bpm: sample.bpm, timestamp: ts }])
+      };
+    }
+  }
+
+  return {
+    accepted: true,
+    reason: 'ok',
+    bpm: sample.bpm,
+    nextPendingSpikes: []
+  };
+}
+
+/* Calcula a FC consolidada para fechamento de estágio (janela padrão de 15s)
+   usando média aparada (count >= 5), mediana (count 3-4) ou média recente (count 1-2). */
+function computeStableStageHr(validSamples, nowMs, options) {
+  const opts = options || {};
+  const windowMs = opts.windowMs != null ? opts.windowMs : HR_STAGE_WINDOW_MS;
+  const staleMs = opts.staleMs != null ? opts.staleMs : HR_STALE_MS;
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  const list = Array.isArray(validSamples) ? validSamples : [];
+
+  const plausible = list.filter(
+    s => s && isPlausibleHr(s.bpm) && typeof s.timestamp === 'number' && s.timestamp <= now
+  );
+  if (plausible.length === 0) {
+    return { bpm: null, sampleCount: 0, method: 'none', spreadBpm: null };
+  }
+
+  let latestTs = -Infinity;
+  for (let i = 0; i < plausible.length; i++) {
+    if (plausible[i].timestamp > latestTs) latestTs = plausible[i].timestamp;
+  }
+  if ((now - latestTs) > staleMs) {
+    return { bpm: null, sampleCount: 0, method: 'stale', spreadBpm: null };
+  }
+
+  const inWin = plausible.filter(s => (now - s.timestamp) <= windowMs);
+  const count = inWin.length;
+  if (count === 0) {
+    return { bpm: null, sampleCount: 0, method: 'none', spreadBpm: null };
+  }
+
+  const sorted = inWin.map(s => s.bpm).sort((a, b) => a - b);
+  const spreadBpm = sorted[count - 1] - sorted[0];
+
+  if (count >= 5) {
+    const k = Math.max(1, Math.floor(count * 0.2));
+    const core = sorted.slice(k, count - k);
+    const avg = core.reduce((acc, v) => acc + v, 0) / core.length;
+    return { bpm: Math.round(avg), sampleCount: count, method: 'trimmed-mean', spreadBpm };
+  }
+  if (count === 3 || count === 4) {
+    const mid = count === 3 ? sorted[1] : (sorted[1] + sorted[2]) / 2;
+    return { bpm: Math.round(mid), sampleCount: count, method: 'median', spreadBpm };
+  }
+  const avg = sorted.reduce((acc, v) => acc + v, 0) / count;
+  return { bpm: Math.round(avg), sampleCount: count, method: 'recent-mean', spreadBpm };
+}
+
+/* Classifica de forma determinística a qualidade/fidedignidade atual do sinal Bluetooth. */
+function assessBtSignalQuality(ctx, nowMs, options) {
+  const opts = options || {};
+  const staleMs = opts.staleMs != null ? opts.staleMs : HR_STALE_MS;
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  const c = ctx || {};
+  const status = c.status || 'disconnected';
+  const validSamples = Array.isArray(c.validSamples) ? c.validSamples : [];
+
+  const stageRes = computeStableStageHr(validSamples, now, { windowMs: HR_STAGE_WINDOW_MS, staleMs });
+  const recentRes = computeStableStageHr(validSamples, now, { windowMs: 4000, staleMs });
+  const displayBpm = recentRes.bpm != null ? recentRes.bpm : stageRes.bpm;
+
+  if (status === 'disconnected') {
+    if (c.lastDisconnectReason === 'unsupported-device') {
+      return {
+        quality: 'unsupported-device',
+        label: 'Aparelho sem sensor de FC · selecione o cinto',
+        reliable: false,
+        displayBpm: null,
+        stageBpm: null
+      };
+    }
+    return { quality: 'disconnected', label: 'Cinto desconectado', reliable: false, displayBpm: null, stageBpm: null };
+  }
+  if (status === 'connecting') {
+    return { quality: 'connecting', label: 'Conectando…', reliable: false, displayBpm: null, stageBpm: null };
+  }
+  if (status === 'reconnecting') {
+    const maxAtt = c.maxReconnectAttempts || 3;
+    const att = c.autoReconnectAttempts ? ` (${c.autoReconnectAttempts}/${maxAtt})` : '';
+    return {
+      quality: 'reconnecting',
+      label: `Reconectando ao cinto${att}…`,
+      reliable: false,
+      displayBpm,
+      stageBpm: stageRes.bpm
+    };
+  }
+  if (status === 'lost') {
+    return { quality: 'lost', label: 'Sinal perdido · digite FC', reliable: false, displayBpm: null, stageBpm: null };
+  }
+
+  /* status === 'connected' */
+  if (c.lastContactDetected === false) {
+    return {
+      quality: 'no-contact',
+      label: 'Ajuste o cinto (mau contato)',
+      reliable: false,
+      displayBpm,
+      stageBpm: null
+    };
+  }
+  if (stageRes.bpm == null) {
+    return {
+      quality: 'stale',
+      label: 'Aguardando batimentos…',
+      reliable: false,
+      displayBpm: null,
+      stageBpm: null
+    };
+  }
+  if (c.recentSpikeCount && c.recentSpikeCount > 0) {
+    return {
+      quality: 'noisy',
+      label: 'Filtro ativo · sinal oscilando',
+      reliable: true,
+      displayBpm,
+      stageBpm: stageRes.bpm
+    };
+  }
+  return {
+    quality: 'stable',
+    label: 'Sinal fidedigno',
+    reliable: true,
+    displayBpm,
+    stageBpm: stageRes.bpm
+  };
 }
 
 /* Decodifica a característica Bluetooth SIG "Heart Rate Measurement" (0x2A37).
@@ -145,5 +352,9 @@ function parseHeartRateMeasurement(dv) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass, classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr };
+  module.exports = {
+    vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
+    classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
+    evaluateHrSample, computeStableStageHr, assessBtSignalQuality
+  };
 }

@@ -2,3 +2,10 @@
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+
+# Node.js / Ambiente local
+node_modules/
+*.log
+.env*
+.DS_Store
+Thumbs.db
