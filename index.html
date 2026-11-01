@@ -72,6 +72,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 
     <!-- Sessão e Usuário Ativo -->
     <div class="flex items-center gap-2" id="headerAuthControls">
+      <button id="btnOpenAdminPanel" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 text-ink hover:brightness-110 transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,.3)]" title="Painel de Gestão e Licenças Comerciais"><span>👑</span> Painel Admin <span id="adminPendingBadge" class="hidden px-1.5 py-0.2 bg-rose-600 text-white text-[10px] rounded-full font-black">0</span></button>
       <span id="headerUserBadge" class="chip bg-panel2 text-slate-300 border border-line text-[11px] hidden"></span>
       <button id="btnViewAsStudent" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold border border-sky-400/50 text-sky-300 hover:bg-sky-400/10 transition" title="Visualizar treinos na visão do aluno">👀 Ver como Aluno</button>
       <button id="btnLogout" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 transition" title="Encerrar sessão">🚪 Sair</button>
@@ -123,27 +124,60 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <!-- Sub-modo Cadastro Professor (inicialmente hidden) -->
       <form id="formProfRegister" class="space-y-3.5 hidden">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Nome Completo do Profissional</label>
-          <input id="profRegName" type="text" placeholder="Prof. Carlos Eduardo" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+          <label class="block text-xs text-slate-400 mb-1">Nome Completo do Profissional <span class="text-rose-400">*</span></label>
+          <input id="profRegName" type="text" placeholder="Prof. Carlos Eduardo" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">E-mail</label>
-          <input id="profRegEmail" type="email" placeholder="carlos@academia.com" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+          <label class="block text-xs text-slate-400 mb-1">E-mail de Trabalho <span class="text-rose-400">*</span></label>
+          <input id="profRegEmail" type="email" placeholder="carlos@academia.com" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">WhatsApp / Celular com DDD <span class="text-rose-400">*</span></label>
+          <input id="profRegPhone" type="tel" placeholder="(11) 98888-7777" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+          <p class="text-[10px] text-slate-500 mt-0.5">Utilizado para retorno comercial e liberação de acesso pelo administrador.</p>
         </div>
         <div>
           <label class="block text-xs text-slate-400 mb-1">CREF / Registro Profissional (opcional)</label>
           <input id="profRegCref" type="text" placeholder="Ex.: 012345-G/SP" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Senha</label>
-          <input id="profRegPass" type="password" placeholder="Mínimo 4 caracteres" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+          <label class="block text-xs text-slate-400 mb-1">PIN / Código de Ativação <span class="text-slate-500 text-[10px] font-normal">(Opcional se já comprou sua licença)</span></label>
+          <input id="profRegPin" type="text" placeholder="Ex.: RL-849201" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none uppercase font-mono tracking-wider">
+          <p class="text-[10px] text-slate-400 mt-0.5">Se ainda não possui um código, deixe em branco. Sua solicitação será enviada para aprovação do administrador.</p>
         </div>
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Confirmar Senha</label>
-          <input id="profRegPass2" type="password" placeholder="Repita a senha" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+          <label class="block text-xs text-slate-400 mb-1">Senha de Acesso <span class="text-rose-400">*</span></label>
+          <input id="profRegPass" type="password" placeholder="Mínimo 4 caracteres" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
         </div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-lime text-ink font-extrabold text-sm hover:brightness-110 transition">Cadastrar e Acessar Painel →</button>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Confirmar Senha <span class="text-rose-400">*</span></label>
+          <input id="profRegPass2" type="password" placeholder="Repita a senha" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <button type="submit" id="btnSubmitProfReg" class="w-full py-3 rounded-xl bg-lime text-ink font-extrabold text-sm hover:brightness-110 transition shadow-[0_0_20px_rgba(184,240,60,.2)]">Enviar Solicitação / Cadastrar →</button>
       </form>
+
+      <!-- Card de Confirmação de Solicitação Enviada -->
+      <div id="profPendingCard" class="hidden rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 space-y-3.5 text-xs text-amber-200">
+        <div class="flex items-center gap-2 text-sm font-bold text-amber-300">
+          <span class="text-base">⏳</span> Solicitação de Cadastro Enviada!
+        </div>
+        <p class="leading-relaxed text-slate-300">
+          Sua requisição foi registrada com sucesso no sistema e está aguardando liberação do administrador. Para agilizar a liberação da sua conta ou tirar dúvidas, clique abaixo:
+        </p>
+        <div class="p-3 bg-black/40 rounded-xl space-y-1 font-mono text-[11px] text-slate-300">
+          <div><b>Nome:</b> <span id="pendingNoticeName">-</span></div>
+          <div><b>E-mail:</b> <span id="pendingNoticeEmail">-</span></div>
+          <div><b>WhatsApp:</b> <span id="pendingNoticePhone">-</span></div>
+        </div>
+        <div class="pt-1 flex flex-col gap-2">
+          <a id="btnPendingWhatsApp" href="#" target="_blank" rel="noopener" class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-500 text-ink font-extrabold text-xs hover:bg-emerald-400 transition shadow-lg">
+            <span>💬</span> Falar com o Administrador no WhatsApp
+          </a>
+          <button type="button" id="btnBackToProfLogin" class="text-xs text-slate-400 hover:text-white py-1.5 underline">
+            Voltar para a tela de login
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Formulário Aluno -->
@@ -166,6 +200,13 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <div class="rounded-xl border border-sky-400/20 bg-sky-400/5 p-3 text-[11px] text-sky-300">
         💡 <b>Dica</b>: Seu Código e PIN são gerados na sua ficha pelo seu professor avaliador no momento do cadastro.
       </div>
+    </div>
+
+    <!-- Link para acesso do Administrador / Fundador -->
+    <div class="text-center pt-2 border-t border-line/40">
+      <button id="btnAuthAdminAccess" type="button" class="text-[11px] text-slate-500 hover:text-amber-300 transition flex items-center justify-center gap-1 mx-auto">
+        <span>👑</span> Acesso do Administrador / Fundador
+      </button>
     </div>
   </div>
 </section>
@@ -795,6 +836,85 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 </section>
 
 <div id="reportView" class="hidden"></div>
+<!-- ============ MODAL DO PAINEL DO ADMINISTRADOR (feature 010) ============ -->
+<div id="modalAdminPanel" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5">
+  <div class="card rounded-3xl p-6 sm:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto space-y-6 border-line shadow-2xl relative fadein">
+    <div class="flex items-start justify-between border-b border-line pb-4">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">👑</span>
+          <h3 class="text-lg font-black tracking-tight text-white">Painel do Administrador & Licenças</h3>
+        </div>
+        <p class="text-xs text-slate-400">Controle de novos professores, aprovação de acessos comerciais e emissão de PINs.</p>
+      </div>
+      <button id="btnCloseAdminModal" type="button" class="w-8 h-8 rounded-full bg-panel2 text-slate-400 hover:text-white flex items-center justify-center border border-line transition font-bold text-sm">✕</button>
+    </div>
+
+    <!-- Abas Internas do Admin -->
+    <div class="flex gap-2 border-b border-line pb-2 text-xs font-bold">
+      <button id="adminTabBtnPending" type="button" class="px-3.5 py-2 rounded-xl bg-lime text-ink transition flex items-center gap-1.5">
+        <span>⏳ Solicitações Pendentes</span>
+        <span id="adminPendingTabCount" class="px-1.5 py-0.2 bg-black/30 rounded-full text-[10px]">0</span>
+      </button>
+      <button id="adminTabBtnPins" type="button" class="px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+        <span>🔑 Códigos de Ativação / Venda</span>
+      </button>
+      <button id="adminTabBtnConfig" type="button" class="px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+        <span>⚙️ WhatsApp do Suporte</span>
+      </button>
+    </div>
+
+    <!-- Feedback do Admin -->
+    <div id="adminAlertNotice" class="hidden text-xs rounded-xl p-3 border"></div>
+
+    <!-- Conteúdo Aba 1: Solicitações Pendentes -->
+    <div id="adminSectionPending" class="space-y-4">
+      <div class="flex items-center justify-between text-xs text-slate-400">
+        <span>Professores aguardando liberação para usar o RunLab:</span>
+        <button id="btnRefreshAdminPending" type="button" class="text-lime hover:underline font-semibold flex items-center gap-1">🔄 Atualizar lista</button>
+      </div>
+      <div id="adminPendingListContainer" class="space-y-2.5">
+        <div class="p-6 text-center text-xs text-slate-500">Carregando solicitações pendentes…</div>
+      </div>
+    </div>
+
+    <!-- Conteúdo Aba 2: Códigos de Ativação / PINs -->
+    <div id="adminSectionPins" class="space-y-4 hidden">
+      <div class="flex flex-wrap items-center justify-between gap-2 p-4 bg-ink/60 rounded-2xl border border-line">
+        <div class="text-xs space-y-0.5">
+          <p class="font-bold text-white">Gerar Novo PIN de Ativação Instantânea</p>
+          <p class="text-slate-400 text-[11px]">Gere um código exclusivo para enviar pelo WhatsApp a quem comprou o RunLab.</p>
+        </div>
+        <button id="btnAdminGeneratePin" type="button" class="px-4 py-2.5 rounded-xl bg-lime text-ink font-bold text-xs hover:brightness-110 transition shadow-[0_0_15px_rgba(184,240,60,.3)]">
+          ➕ Gerar Novo PIN
+        </button>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Histórico de Códigos e Licenças Geradas:</span>
+          <button id="btnRefreshAdminPins" type="button" class="text-lime hover:underline font-semibold">🔄 Atualizar</button>
+        </div>
+        <div id="adminPinsListContainer" class="space-y-2 max-h-72 overflow-y-auto">
+          <div class="p-6 text-center text-xs text-slate-500">Nenhum código gerado ainda.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conteúdo Aba 3: Configuração WhatsApp -->
+    <div id="adminSectionConfig" class="space-y-4 hidden">
+      <div class="card p-4 rounded-2xl border border-line space-y-3 text-xs">
+        <p class="font-bold text-white">Número de WhatsApp para Contato Comercial e Liberação</p>
+        <p class="text-slate-400 text-[11px]">Os botões de "Falar com o Administrador" abrirão uma conversa direta com este número.</p>
+        <div class="flex gap-2">
+          <input id="adminCfgPhoneInput" type="tel" placeholder="Ex.: 5511999998888 (com DDI e DDD)" class="flex-1 bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none">
+          <button id="btnSaveAdminPhone" type="button" class="px-4 py-2 rounded-xl bg-lime text-ink font-bold hover:brightness-110 transition">Salvar Número</button>
+        </div>
+        <p id="adminCfgSavedAlert" class="text-[11px] text-lime hidden">✓ Número de suporte salvo com sucesso!</p>
+      </div>
+    </div>
+  </div>
+</div>
 </main>
 
 <footer class="border-t border-line py-6 text-center text-[11px] text-slate-500">
@@ -2462,6 +2582,13 @@ const AuthSessionManager=(()=>{
     const uBadge=document.getElementById('headerUserBadge');
     const btnLogout=document.getElementById('btnLogout');
     const btnAsStud=document.getElementById('btnViewAsStudent');
+    const btnAdmin=document.getElementById('btnOpenAdminPanel');
+
+    const isAdmin=sess&&(sess.isAdmin||sess.role==='admin'||sess.email==='admin@runlab.com');
+    if(btnAdmin){
+      btnAdmin.classList.toggle('hidden',!isAdmin);
+      if(isAdmin&&typeof AdminManager!=='undefined')AdminManager.updatePendingBadge();
+    }
 
     if(!sess){
       if(vAuth)vAuth.classList.remove('hidden');
@@ -2511,9 +2638,10 @@ const AuthSessionManager=(()=>{
   return{getSession,setSession,clearSession,applyView};
 })();
 
-/* ================= MÓDULO DE AUTENTICAÇÃO COM FIRESTORE (feature 009) ================= */
+/* ================= MÓDULO DE AUTENTICAÇÃO COM FIRESTORE (feature 009 & 010) ================= */
 const ProfessorAuthDB=(()=>{
   const COLLECTION='professors';
+  const CODES_COLLECTION='activation_codes';
 
   async function sha256(str){
     try{
@@ -2530,28 +2658,52 @@ const ProfessorAuthDB=(()=>{
     return('00000000'+(h>>>0).toString(16)).slice(-8).repeat(8);
   }
 
-  function showAuthAlert(msg,tone='rose'){
+  function showAuthAlert(msg,tone='rose',extraHtml=''){
     const el=document.getElementById('authAlert');
     if(!el)return;
-    el.textContent=msg;
+    el.innerHTML=`<div>${escHtml(msg)}</div>${extraHtml}`;
     el.classList.remove('hidden');
     el.className='text-xs rounded-xl p-3 border '+(tone==='lime'?'bg-lime/10 text-lime border-lime/30':'bg-rose-500/10 text-rose-300 border-rose-500/30');
   }
 
-  async function registerProfessor({name,email,cref,password}){
+  async function registerProfessor({name,email,phone,cref,pinCode,password}){
     name=String(name||'').trim();
     email=String(email||'').trim().toLowerCase();
     password=String(password||'').trim();
+    pinCode=String(pinCode||'').trim().toUpperCase();
+
     if(name.length<3)throw new Error('O nome do professor deve ter pelo menos 3 caracteres.');
     if(email.length<3||!email.includes('@'))throw new Error('Informe um e-mail válido.');
     if(password.length<4)throw new Error('A senha deve ter no mínimo 4 caracteres.');
+
+    const phoneCheck=validatePhone(phone);
+    if(!phoneCheck.valid)throw new Error(phoneCheck.error||'Informe um WhatsApp/telefone válido.');
 
     const db=await AthleteCloudDB.getDb();
     if(!db)throw new Error('Não foi possível conectar ao banco de dados Firestore.');
 
     const snap=await db.collection(COLLECTION).where('emailLower','==',email).limit(1).get();
     if(!snap.empty){
-      throw new Error('Já existe uma conta de professor cadastrada com este e-mail.');
+      const existing=snap.docs[0].data();
+      if(existing.status==='pendente'){
+        throw new Error('Já existe uma solicitação pendente para este e-mail. Aguarde liberação do administrador.');
+      }
+      throw new Error('Já existe uma conta cadastrada com este e-mail. Faça login.');
+    }
+
+    let isInstantActive=false;
+    if(pinCode){
+      const codeSnap=await db.collection(CODES_COLLECTION).where('code','==',pinCode).limit(1).get();
+      if(codeSnap.empty||codeSnap.docs[0].data().status!=='disponivel'){
+        throw new Error('PIN / Código de Ativação inválido, expirado ou já utilizado.');
+      }
+      const codeDoc=codeSnap.docs[0];
+      await db.collection(CODES_COLLECTION).doc(codeDoc.id).update({
+        status:'utilizado',
+        usedByEmail:email,
+        usedAt:new Date().toISOString()
+      });
+      isInstantActive=true;
     }
 
     const pHash=await sha256(password);
@@ -2561,20 +2713,37 @@ const ProfessorAuthDB=(()=>{
       name,
       email,
       emailLower:email,
+      phone:phoneCheck.formatted,
+      phoneRaw:phoneCheck.sanitized,
       cref:String(cref||'').trim(),
       passwordHash:pHash,
+      status:isInstantActive?'ativo':'pendente',
+      role:'professor',
+      activationPin:pinCode||null,
       createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString()
     };
 
     await db.collection(COLLECTION).doc(profId).set(docData);
-    AuthSessionManager.setSession({
-      role:'professor',
-      userId:profId,
-      displayName:name,
-      email
-    });
-    return docData;
+
+    if(isInstantActive){
+      AuthSessionManager.setSession({
+        role:'professor',
+        userId:profId,
+        displayName:name,
+        email,
+        isAdmin:false
+      });
+    }
+
+    return{
+      success:true,
+      status:docData.status,
+      name,
+      email,
+      phone:phoneCheck.formatted,
+      phoneRaw:phoneCheck.sanitized
+    };
   }
 
   async function loginProfessor({email,password}){
@@ -2595,11 +2764,22 @@ const ProfessorAuthDB=(()=>{
       throw new Error('E-mail ou senha incorretos.');
     }
 
+    const access=evaluateProfessorAccess(prof);
+    if(!access.allowed){
+      const err=new Error(access.messagePtBr);
+      err.isPending=(access.reason==='pending_approval');
+      err.profData=prof;
+      throw err;
+    }
+
+    const isAdmin=prof.role==='admin'||prof.emailLower==='admin@runlab.com'||prof.isAdmin===true;
+
     AuthSessionManager.setSession({
       role:'professor',
       userId:prof.id||snap.docs[0].id,
       displayName:prof.name,
-      email:prof.emailLower
+      email:prof.emailLower,
+      isAdmin
     });
     return prof;
   }
@@ -2640,6 +2820,231 @@ const ProfessorAuthDB=(()=>{
   }
 
   return{registerProfessor,loginProfessor,loginStudent,showAuthAlert};
+})();
+
+/* ================= PAINEL DO ADMINISTRADOR & GESTÃO DE LICENÇAS (feature 010) ================= */
+const AdminManager=(()=>{
+  const WA_KEY='runlab_admin_whatsapp';
+  const MASTER_ADMIN_KEY='RUNLAB-ADMIN-2026';
+
+  function getAdminWhatsapp(){
+    return localStorage.getItem(WA_KEY)||'5511999998888';
+  }
+
+  function setAdminWhatsapp(phone){
+    const clean=String(phone||'').replace(/\D/g,'');
+    localStorage.setItem(WA_KEY,clean);
+  }
+
+  function getWhatsAppUrl(name,email){
+    const wa=getAdminWhatsapp();
+    const txt=`Olá! Solicitei meu cadastro no RunLab como professor (Nome: ${name || ''}, E-mail: ${email || ''}) e gostaria de liberar meu acesso comercial.`;
+    return `https://wa.me/${wa}?text=${encodeURIComponent(txt)}`;
+  }
+
+  async function updatePendingBadge(){
+    try{
+      const db=await AthleteCloudDB.getDb();
+      if(!db)return;
+      const snap=await db.collection('professors').where('status','==','pendente').get();
+      const count=snap.size;
+      const badge=document.getElementById('adminPendingBadge');
+      const tabCount=document.getElementById('adminPendingTabCount');
+      if(badge){
+        badge.textContent=count;
+        badge.classList.toggle('hidden',count===0);
+      }
+      if(tabCount)tabCount.textContent=count;
+    }catch(e){}
+  }
+
+  async function loadPendingRequests(){
+    const cont=document.getElementById('adminPendingListContainer');
+    if(!cont)return;
+    cont.innerHTML='<div class="p-6 text-center text-xs text-slate-500">Buscando solicitações no Firebase Firestore…</div>';
+    try{
+      const db=await AthleteCloudDB.getDb();
+      const snap=await db.collection('professors').where('status','==','pendente').get();
+      if(snap.empty){
+        cont.innerHTML='<div class="p-8 text-center text-xs text-slate-400 bg-ink/40 rounded-2xl border border-line">✨ Nenhuma solicitação pendente no momento. Todas as contas foram avaliadas!</div>';
+        updatePendingBadge();
+        return;
+      }
+      let html='';
+      snap.forEach(doc=>{
+        const p=doc.data();
+        const waLink=`https://wa.me/55${p.phoneRaw || ''}?text=${encodeURIComponent('Olá Prof. ' + p.name + ', vi sua solicitação de acesso no RunLab!')}`;
+        html+=`
+        <div class="card p-4 rounded-2xl border border-line bg-ink/70 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="space-y-1 min-w-[200px]">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white text-sm">${escHtml(p.name)}</span>
+              <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold text-[10px]">Pendente</span>
+            </div>
+            <div class="text-slate-400 text-[11px]">📧 ${escHtml(p.emailLower)}</div>
+            <div class="text-slate-300 text-[11px]">📱 WhatsApp: <b>${escHtml(p.phone||'—')}</b></div>
+            <div class="text-slate-500 text-[10px]">Solicitado em: ${new Date(p.createdAt).toLocaleString('pt-BR')}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="${waLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 transition font-bold flex items-center gap-1">
+              💬 WhatsApp
+            </a>
+            <button type="button" data-admin-approve="${escHtml(doc.id)}" class="px-3 py-1.5 rounded-xl bg-lime text-ink hover:brightness-110 transition font-extrabold">
+              ✓ Aprovar
+            </button>
+            <button type="button" data-admin-reject="${escHtml(doc.id)}" class="px-2.5 py-1.5 rounded-xl border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 transition">
+              ✕ Recusar
+            </button>
+          </div>
+        </div>`;
+      });
+      cont.innerHTML=html;
+      updatePendingBadge();
+    }catch(err){
+      cont.innerHTML=`<div class="p-4 text-xs text-rose-400">Erro ao carregar solicitações: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  async function approveRequest(profId){
+    if(!confirm('Deseja aprovar e liberar o acesso deste professor ao RunLab?'))return;
+    try{
+      const db=await AthleteCloudDB.getDb();
+      await db.collection('professors').doc(profId).update({
+        status:'ativo',
+        approvedAt:new Date().toISOString()
+      });
+      alert('Professor aprovado com sucesso! O acesso já está liberado para login.');
+      loadPendingRequests();
+    }catch(err){
+      alert('Erro ao aprovar: '+err.message);
+    }
+  }
+
+  async function rejectRequest(profId){
+    if(!confirm('Deseja recusar esta solicitação de cadastro?'))return;
+    try{
+      const db=await AthleteCloudDB.getDb();
+      await db.collection('professors').doc(profId).update({
+        status:'bloqueado',
+        updatedAt:new Date().toISOString()
+      });
+      alert('Solicitação recusada.');
+      loadPendingRequests();
+    }catch(err){
+      alert('Erro ao recusar: '+err.message);
+    }
+  }
+
+  async function generateNewPin(){
+    try{
+      const pin=generateActivationPin();
+      const db=await AthleteCloudDB.getDb();
+      await db.collection('activation_codes').doc(pin).set({
+        code:pin,
+        status:'disponivel',
+        createdAt:new Date().toISOString(),
+        usedByEmail:null,
+        usedAt:null
+      });
+      alert(`Novo PIN de Ativação gerado com sucesso!
+
+Código: ${pin}
+
+Você já pode enviar este código para o cliente ativar o acesso.`);
+      loadPinsList();
+    }catch(err){
+      alert('Erro ao gerar PIN: '+err.message);
+    }
+  }
+
+  async function loadPinsList(){
+    const cont=document.getElementById('adminPinsListContainer');
+    if(!cont)return;
+    cont.innerHTML='<div class="p-4 text-center text-xs text-slate-500">Carregando códigos de licença…</div>';
+    try{
+      const db=await AthleteCloudDB.getDb();
+      const snap=await db.collection('activation_codes').orderBy('createdAt','desc').limit(50).get();
+      if(snap.empty){
+        cont.innerHTML='<div class="p-6 text-center text-xs text-slate-400 bg-ink/40 rounded-2xl border border-line">Nenhum código gerado ainda. Clique em "+ Gerar Novo PIN".</div>';
+        return;
+      }
+      let html='';
+      snap.forEach(doc=>{
+        const c=doc.data();
+        const isAvail=c.status==='disponivel';
+        const msg=`Olá! Seu acesso ao RunLab foi liberado. Acesse https://teste-incremental-56aeb.web.app e informe seu PIN de Ativação: ${c.code}`;
+        html+=`
+        <div class="p-3 rounded-xl border border-line bg-ink/70 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-black ${isAvail?'text-lime':'text-slate-400 line-through'}">${escHtml(c.code)}</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-sans ${isAvail?'bg-lime/20 text-lime font-bold':'bg-slate-700 text-slate-300'}">${isAvail?'Disponível':'Utilizado por '+(c.usedByEmail||'cliente')}</span>
+            </div>
+            <div class="text-[10px] text-slate-500 font-sans">Criado em: ${new Date(c.createdAt).toLocaleDateString('pt-BR')}</div>
+          </div>
+          <div>
+            ${isAvail?`<button type="button" data-admin-copy-pin="${escHtml(msg)}" class="px-3 py-1.5 rounded-lg bg-panel2 border border-line text-slate-300 hover:text-white text-xs font-sans font-semibold">📋 Copiar Mensagem</button>`:''}
+          </div>
+        </div>`;
+      });
+      cont.innerHTML=html;
+    }catch(err){
+      cont.innerHTML=`<div class="p-4 text-xs text-rose-400">Erro ao carregar códigos: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function openModal(){
+    const m=document.getElementById('modalAdminPanel');
+    if(!m)return;
+    m.classList.remove('hidden');
+    const cfgInput=document.getElementById('adminCfgPhoneInput');
+    if(cfgInput)cfgInput.value=getAdminWhatsapp();
+    switchTab('pending');
+  }
+
+  function closeModal(){
+    document.getElementById('modalAdminPanel')?.classList.add('hidden');
+  }
+
+  function switchTab(tab){
+    const btnPending=document.getElementById('adminTabBtnPending');
+    const btnPins=document.getElementById('adminTabBtnPins');
+    const btnConfig=document.getElementById('adminTabBtnConfig');
+    const secPending=document.getElementById('adminSectionPending');
+    const secPins=document.getElementById('adminSectionPins');
+    const secConfig=document.getElementById('adminSectionConfig');
+
+    if(tab==='pending'){
+      btnPending.className='px-3.5 py-2 rounded-xl bg-lime text-ink transition flex items-center gap-1.5 font-bold';
+      btnPins.className='px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+      btnConfig.className='px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+      secPending.classList.remove('hidden');
+      secPins.classList.add('hidden');
+      secConfig.classList.add('hidden');
+      loadPendingRequests();
+    }else if(tab==='pins'){
+      btnPending.className='px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+      btnPins.className='px-3.5 py-2 rounded-xl bg-lime text-ink transition flex items-center gap-1.5 font-bold';
+      btnConfig.className='px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+      secPending.classList.add('hidden');
+      secPins.classList.remove('hidden');
+      secConfig.classList.add('hidden');
+      loadPinsList();
+    }else if(tab==='config'){
+      btnPending.className='px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+      btnPins.className='px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5';
+      btnConfig.className='px-3.5 py-2 rounded-xl bg-lime text-ink transition flex items-center gap-1.5 font-bold';
+      secPending.classList.add('hidden');
+      secPins.classList.add('hidden');
+      secConfig.classList.remove('hidden');
+    }
+  }
+
+  return{
+    getAdminWhatsapp,setAdminWhatsapp,getWhatsAppUrl,updatePendingBadge,
+    loadPendingRequests,approveRequest,rejectRequest,generateNewPin,
+    loadPinsList,openModal,closeModal,switchTab,MASTER_ADMIN_KEY
+  };
 })();
 
 /* ================= PORTAL DO ALUNO / TREINOS NA ESTEIRA (feature 009) ================= */
@@ -2988,27 +3393,111 @@ document.getElementById('formProfLogin')?.addEventListener('submit',async e=>{
     ProfessorAuthDB.showAuthAlert('Autenticando professor…','lime');
     await ProfessorAuthDB.loginProfessor({email,password:pass});
   }catch(err){
-    ProfessorAuthDB.showAuthAlert(err.message,'rose');
+    if(err.isPending){
+      const waUrl=AdminManager.getWhatsAppUrl(err.profData?.name,err.profData?.emailLower);
+      const extra=`<div class="mt-2 pt-2 border-t border-rose-500/20">
+        <a href="${waUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-ink font-bold text-xs hover:bg-emerald-400 transition">
+          💬 Falar com o Administrador no WhatsApp
+        </a>
+      </div>`;
+      ProfessorAuthDB.showAuthAlert(err.message,'rose',extra);
+    }else{
+      ProfessorAuthDB.showAuthAlert(err.message,'rose');
+    }
   }
 });
 
-// Submissão do Cadastro de Professor
+// Submissão do Cadastro de Professor (com WhatsApp e PIN)
 document.getElementById('formProfRegister')?.addEventListener('submit',async e=>{
   e.preventDefault();
   const name=document.getElementById('profRegName').value;
   const email=document.getElementById('profRegEmail').value;
+  const phone=document.getElementById('profRegPhone').value;
+  const pinCode=document.getElementById('profRegPin').value;
   const cref=document.getElementById('profRegCref').value;
   const pass=document.getElementById('profRegPass').value;
   const pass2=document.getElementById('profRegPass2').value;
+
   if(pass!==pass2){
     ProfessorAuthDB.showAuthAlert('As senhas não conferem. Digite a mesma senha nos dois campos.','rose');
     return;
   }
   try{
-    ProfessorAuthDB.showAuthAlert('Criando conta de professor…','lime');
-    await ProfessorAuthDB.registerProfessor({name,email,cref,password:pass});
+    ProfessorAuthDB.showAuthAlert('Processando solicitação…','lime');
+    const res=await ProfessorAuthDB.registerProfessor({name,email,phone,cref,pinCode,password:pass});
+    if(res.status==='pendente'){
+      document.getElementById('formProfRegister').classList.add('hidden');
+      document.getElementById('pendingNoticeName').textContent=res.name;
+      document.getElementById('pendingNoticeEmail').textContent=res.email;
+      document.getElementById('pendingNoticePhone').textContent=res.phone;
+      const btnWa=document.getElementById('btnPendingWhatsApp');
+      if(btnWa)btnWa.href=AdminManager.getWhatsAppUrl(res.name,res.email);
+      document.getElementById('profPendingCard').classList.remove('hidden');
+      document.getElementById('authAlert')?.classList.add('hidden');
+    }else{
+      ProfessorAuthDB.showAuthAlert('Conta ativada com sucesso! Bem-vindo ao RunLab.','lime');
+    }
   }catch(err){
     ProfessorAuthDB.showAuthAlert(err.message,'rose');
+  }
+});
+
+// Botão "Voltar para tela de login" na tela de solicitação pendente
+document.getElementById('btnBackToProfLogin')?.addEventListener('click',()=>{
+  document.getElementById('profPendingCard')?.classList.add('hidden');
+  document.getElementById('formProfRegister')?.classList.add('hidden');
+  document.getElementById('formProfLogin')?.classList.remove('hidden');
+  const btnToggle=document.getElementById('btnToggleProfMode');
+  if(btnToggle)btnToggle.textContent='Criar nova conta de professor';
+  document.getElementById('authAlert')?.classList.add('hidden');
+});
+
+// Controles do Painel do Administrador
+document.getElementById('btnOpenAdminPanel')?.addEventListener('click',()=>{
+  const sess=AuthSessionManager.getSession();
+  if(!sess||!sess.isAdmin){
+    const pass=prompt('Digite a Chave Mestra de Administrador / Fundador:');
+    if(pass===AdminManager.MASTER_ADMIN_KEY){
+      if(sess){
+        sess.isAdmin=true;
+        sess.role='admin';
+        AuthSessionManager.setSession(sess);
+      }
+      AdminManager.openModal();
+    }else{
+      alert('Chave de Administrador incorreta.');
+    }
+    return;
+  }
+  AdminManager.openModal();
+});
+document.getElementById('btnCloseAdminModal')?.addEventListener('click',()=>AdminManager.closeModal());
+document.getElementById('adminTabBtnPending')?.addEventListener('click',()=>AdminManager.switchTab('pending'));
+document.getElementById('adminTabBtnPins')?.addEventListener('click',()=>AdminManager.switchTab('pins'));
+document.getElementById('adminTabBtnConfig')?.addEventListener('click',()=>AdminManager.switchTab('config'));
+document.getElementById('btnRefreshAdminPending')?.addEventListener('click',()=>AdminManager.loadPendingRequests());
+document.getElementById('btnRefreshAdminPins')?.addEventListener('click',()=>AdminManager.loadPinsList());
+document.getElementById('btnAdminGeneratePin')?.addEventListener('click',()=>AdminManager.generateNewPin());
+document.getElementById('btnSaveAdminPhone')?.addEventListener('click',()=>{
+  const val=document.getElementById('adminCfgPhoneInput')?.value;
+  AdminManager.setAdminWhatsapp(val);
+  const al=document.getElementById('adminCfgSavedAlert');
+  if(al){al.classList.remove('hidden');setTimeout(()=>al.classList.add('hidden'),3000);}
+});
+document.getElementById('adminPendingListContainer')?.addEventListener('click',e=>{
+  const bApprove=e.target.closest('[data-admin-approve]');
+  if(bApprove){AdminManager.approveRequest(bApprove.dataset.adminApprove);return;}
+  const bReject=e.target.closest('[data-admin-reject]');
+  if(bReject){AdminManager.rejectRequest(bReject.dataset.adminReject);return;}
+});
+document.getElementById('adminPinsListContainer')?.addEventListener('click',e=>{
+  const bCopy=e.target.closest('[data-admin-copy-pin]');
+  if(bCopy){
+    navigator.clipboard.writeText(bCopy.dataset.adminCopyPin).then(()=>{
+      alert('Mensagem copiada para a área de transferência! Cole no WhatsApp do seu cliente.');
+    }).catch(()=>{
+      prompt('Copie a mensagem abaixo:',bCopy.dataset.adminCopyPin);
+    });
   }
 });
 
@@ -3171,9 +3660,37 @@ document.getElementById('athListContainer')?.addEventListener('click',e=>{
   if(btnDelAsmt){const[aId,sId]=btnDelAsmt.dataset.asmtDel.split('|');AthleteCloudDB.deleteAssessment(aId,sId);return;}
 });
 
-// Inicialização
+// Botão de acesso direto do Admin na tela de login
+document.getElementById('btnAuthAdminAccess')?.addEventListener('click',()=>{
+  const pass=prompt('Digite a Chave Mestra de Administrador / Fundador:');
+  if(pass===AdminManager.MASTER_ADMIN_KEY){
+    AdminManager.openModal();
+  }else if(pass!==null){
+    alert('Chave de Administrador incorreta.');
+  }
+});
+
+// Inicialização e validação de sessão em tempo real
 AuthSessionManager.applyView();
-AthleteCloudDB.init().then(()=>{
+AthleteCloudDB.init().then(async()=>{
+  const sess=AuthSessionManager.getSession();
+  if(sess&&sess.role==='professor'&&sess.email){
+    try{
+      const db=await AthleteCloudDB.getDb();
+      if(db){
+        const snap=await db.collection('professors').where('emailLower','==',sess.email).limit(1).get();
+        if(!snap.empty){
+          const p=snap.docs[0].data();
+          const acc=evaluateProfessorAccess(p);
+          if(!acc.allowed){
+            alert(acc.messagePtBr);
+            AuthSessionManager.clearSession();
+            return;
+          }
+        }
+      }
+    }catch(e){}
+  }
   AuthSessionManager.applyView();
 });
 </script>

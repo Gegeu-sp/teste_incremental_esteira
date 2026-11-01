@@ -635,12 +635,107 @@ function generateWorkoutPrescriptions(assessment) {
   return [cardZ1, cardZ2, cardZ3, cardZ4, cardShort, cardSpeed];
 }
 
+/**
+ * Higieniza e valida o formato de telefone/WhatsApp brasileiro.
+ * @param {string} phoneStr
+ * @returns {{ valid: boolean, sanitized: string, formatted: string, error?: string }}
+ */
+function validatePhone(phoneStr) {
+  const digits = String(phoneStr || '').replace(/\D/g, '');
+  if (!digits) {
+    return { valid: false, sanitized: '', formatted: '', error: 'Telefone ou WhatsApp é obrigatório' };
+  }
+  if (digits.length < 10 || digits.length > 11) {
+    return { valid: false, sanitized: digits, formatted: digits, error: 'Telefone deve conter DDD + 8 ou 9 dígitos' };
+  }
+  const ddd = parseInt(digits.slice(0, 2), 10);
+  if (ddd < 11 || ddd > 99) {
+    return { valid: false, sanitized: digits, formatted: digits, error: 'DDD inválido' };
+  }
+  let formatted = digits;
+  if (digits.length === 11) {
+    formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  } else {
+    formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return { valid: true, sanitized: digits, formatted };
+}
+
+/**
+ * Gera um PIN ou Código de Ativação alfanumérico em formato amigável.
+ * Exemplo: "RL-784920"
+ * @param {string|number} [seedString]
+ * @param {number} [length=6]
+ * @returns {string}
+ */
+function generateActivationPin(seedString, length = 6) {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let hashNum = 0;
+  if (seedString !== undefined && seedString !== null) {
+    const str = String(seedString);
+    for (let i = 0; i < str.length; i++) {
+      hashNum = ((hashNum << 5) - hashNum + str.charCodeAt(i)) >>> 0;
+    }
+  }
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    const idx = seedString !== undefined && seedString !== null
+      ? ((hashNum + i * 31) >>> 0) % chars.length
+      : Math.floor(Math.random() * chars.length);
+    result += chars[idx];
+  }
+  return `RL-${result}`;
+}
+
+/**
+ * Avalia se um registro de professor tem permissão de login.
+ * @param {object} professorRecord
+ * @returns {{ allowed: boolean, reason: 'active'|'pending_approval'|'blocked'|'invalid_record', messagePtBr: string }}
+ */
+function evaluateProfessorAccess(professorRecord) {
+  if (!professorRecord || typeof professorRecord !== 'object') {
+    return {
+      allowed: false,
+      reason: 'invalid_record',
+      messagePtBr: 'Registro de conta inválido ou não encontrado.'
+    };
+  }
+  const status = professorRecord.status || 'ativo';
+  if (status === 'ativo') {
+    return {
+      allowed: true,
+      reason: 'active',
+      messagePtBr: 'Acesso liberado.'
+    };
+  }
+  if (status === 'pendente') {
+    return {
+      allowed: false,
+      reason: 'pending_approval',
+      messagePtBr: 'Sua solicitação de cadastro está em análise pelo administrador. Entre em contato para liberação.'
+    };
+  }
+  if (status === 'bloqueado') {
+    return {
+      allowed: false,
+      reason: 'blocked',
+      messagePtBr: 'Sua conta de professor está desativada ou suspensa. Fale com a administração.'
+    };
+  }
+  return {
+    allowed: false,
+    reason: 'invalid_record',
+    messagePtBr: 'Status de conta não reconhecido.'
+  };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
     classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
     evaluateHrSample, computeStableStageHr, assessBtSignalQuality,
     computeVPeak, compareAssessments,
-    generateStudentAccessCode, generateWorkoutPrescriptions
+    generateStudentAccessCode, generateWorkoutPrescriptions,
+    validatePhone, generateActivationPin, evaluateProfessorAccess
   };
 }

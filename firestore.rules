@@ -8,7 +8,15 @@ service cloud.firestore {
                             && request.resource.data.emailLower is string
                             && request.resource.data.emailLower.size() >= 3
                             && request.resource.data.passwordHash is string
-                            && request.resource.data.passwordHash.size() == 64;
+                            && request.resource.data.passwordHash.size() == 64
+                            && (!('status' in request.resource.data) || request.resource.data.status in ['pendente', 'ativo', 'bloqueado'])
+                            && (!('role' in request.resource.data) || request.resource.data.role in ['admin', 'professor']);
+    }
+    match /activation_codes/{codeId} {
+      allow read, delete: if true;
+      allow create, update: if request.resource.data.code is string
+                            && request.resource.data.code.size() >= 4
+                            && request.resource.data.status in ['disponivel', 'utilizado', 'cancelado'];
     }
     match /athletes/{athleteId} {
       allow read, delete: if true;

@@ -5,7 +5,8 @@ const {
   classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
   evaluateHrSample, computeStableStageHr, assessBtSignalQuality,
   computeVPeak, compareAssessments,
-  generateStudentAccessCode, generateWorkoutPrescriptions
+  generateStudentAccessCode, generateWorkoutPrescriptions,
+  validatePhone, generateActivationPin, evaluateProfessorAccess
 } = require('../assets/calc.js');
 
 test('vo2At reproduz a tabela do protocolo (velocidade → VO2)', () => {
@@ -479,3 +480,65 @@ test('generateWorkoutPrescriptions: gera 6 fichas com velocidades, paces e passo
   assert.equal(speed.mainSpeedKmh, 13.0);
 });
 
+
+/* ================= FEATURE 010: RESTRIÇÃO, PIN DE ACESSO E APROVAÇÃO ================= */
+
+test('validatePhone: higieniza e valida formato brasileiro de telefone/WhatsApp', () => {
+  assert.equal(validatePhone('').valid, false);
+  assert.equal(validatePhone(null).valid, false);
+  assert.equal(validatePhone('12345').valid, false);
+
+  // 11 dígitos com formatação
+  const rMobile = validatePhone('(11) 98765-4321');
+  assert.equal(rMobile.valid, true);
+  assert.equal(rMobile.sanitized, '11987654321');
+  assert.equal(rMobile.formatted, '(11) 98765-4321');
+
+  // 10 dígitos (fixo)
+  const rLandline = validatePhone('11 3214-5678');
+  assert.equal(rLandline.valid, true);
+  assert.equal(rLandline.sanitized, '1132145678');
+  assert.equal(rLandline.formatted, '(11) 3214-5678');
+
+  // DDD inválido
+  const rInvalidDdd = validatePhone('05 98765-4321');
+  assert.equal(rInvalidDdd.valid, false);
+});
+
+test('generateActivationPin: gera código alfanumérico amigável prefixado com RL-', () => {
+  const pin1 = generateActivationPin(12345);
+  assert.ok(pin1.startsWith('RL-'));
+  assert.equal(pin1.length, 9); // 'RL-' + 6 chars
+  assert.match(pin1, /^RL-[2-9A-Z]{6}$/);
+
+  // Determinístico com mesma seed
+  const pin2 = generateActivationPin(12345);
+  assert.equal(pin1, pin2);
+
+  // Aleatório sem seed
+  const randomPin = generateActivationPin();
+  assert.ok(randomPin.startsWith('RL-'));
+  assert.equal(randomPin.length, 9);
+});
+
+test('evaluateProfessorAccess: avalia corretamente estados de conta (ativo, pendente, bloqueado)', () => {
+  // Inválido
+  assert.equal(evaluateProfessorAccess(null).allowed, false);
+  assert.equal(evaluateProfessorAccess({}).allowed, true); // retrocompatível sem status
+
+  // Ativo
+  const active = evaluateProfessorAccess({ status: 'ativo' });
+  assert.equal(active.allowed, true);
+  assert.equal(active.reason, 'active');
+
+  // Pendente
+  const pending = evaluateProfessorAccess({ status: 'pendente' });
+  assert.equal(pending.allowed, false);
+  assert.equal(pending.reason, 'pending_approval');
+  assert.ok(pending.messagePtBr.includes('análise'));
+
+  // Bloqueado
+  const blocked = evaluateProfessorAccess({ status: 'bloqueado' });
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.reason, 'blocked');
+});
