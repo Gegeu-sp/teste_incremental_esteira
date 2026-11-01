@@ -494,6 +494,12 @@ test('validatePhone: higieniza e valida formato brasileiro de telefone/WhatsApp'
   assert.equal(rMobile.sanitized, '11987654321');
   assert.equal(rMobile.formatted, '(11) 98765-4321');
 
+  // WhatsApp oficial do suporte (11) 94715-2652
+  const rAdminWa = validatePhone('(11) 94715-2652');
+  assert.equal(rAdminWa.valid, true);
+  assert.equal(rAdminWa.sanitized, '11947152652');
+  assert.equal(rAdminWa.formatted, '(11) 94715-2652');
+
   // 13 dígitos com DDI 55
   const rDdi = validatePhone('55 (11) 98765-4321');
   assert.equal(rDdi.valid, true);

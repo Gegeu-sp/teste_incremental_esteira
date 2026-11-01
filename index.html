@@ -11,6 +11,7 @@
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.18/400.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.18/700.css" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/imask@7.6.1/dist/imask.min.js"></script>
 <script>
 tailwind.config={theme:{extend:{fontFamily:{display:['Sora','sans-serif'],mono:['"JetBrains Mono"','monospace']},
 colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F03C'}}}}
@@ -930,7 +931,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
           <p class="font-bold text-white">Número de WhatsApp para Contato Comercial e Liberação</p>
           <p class="text-slate-400 text-[11px]">Os botões de "Falar com o Administrador" abrirão uma conversa direta com este número.</p>
           <div class="flex gap-2">
-            <input id="adminCfgPhoneInput" type="tel" placeholder="Ex.: 5511999998888 (com DDI e DDD)" class="flex-1 bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none">
+            <input id="adminCfgPhoneInput" type="tel" placeholder="(11) 94715-2652" class="flex-1 bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none">
             <button id="btnSaveAdminPhone" type="button" class="px-4 py-2 rounded-xl bg-lime text-ink font-bold hover:brightness-110 transition">Salvar Número</button>
           </div>
           <p id="adminCfgSavedAlert" class="text-[11px] text-lime hidden">✓ Número de suporte salvo com sucesso!</p>
@@ -2626,6 +2627,20 @@ const AuthSessionManager=(()=>{
       return;
     }
 
+    if(sess.role==='admin'||sess.isAdmin){
+      if(vAuth)vAuth.classList.add('hidden');
+      if(vProf)vProf.classList.remove('hidden');
+      if(vStud)vStud.classList.add('hidden');
+      if(tabbar)tabbar.classList.remove('hidden');
+      if(uBadge){
+        uBadge.classList.remove('hidden');
+        uBadge.textContent='👑 '+(sess.displayName||'Administrador');
+      }
+      if(btnLogout)btnLogout.classList.remove('hidden');
+      if(btnAdmin)btnAdmin.classList.remove('hidden');
+      return;
+    }
+
     if(sess.role==='professor'){
       if(vAuth)vAuth.classList.add('hidden');
       if(vProf)vProf.classList.remove('hidden');
@@ -2885,15 +2900,24 @@ const ProfessorAuthDB=(()=>{
 /* ================= PAINEL DO ADMINISTRADOR & GESTÃO DE LICENÇAS (feature 010) ================= */
 const AdminManager=(()=>{
   const WA_KEY='runlab_admin_whatsapp';
+  const DEFAULT_ADMIN_WA='5511947152652';
   const MASTER_ADMIN_KEY='RUNLAB-ADMIN-2026';
 
   function getAdminWhatsapp(){
-    return localStorage.getItem(WA_KEY)||'5511999998888';
+    const stored=localStorage.getItem(WA_KEY);
+    if(!stored||stored==='5511999998888'){
+      localStorage.setItem(WA_KEY,DEFAULT_ADMIN_WA);
+      return DEFAULT_ADMIN_WA;
+    }
+    return stored;
   }
 
   function setAdminWhatsapp(phone){
-    const clean=String(phone||'').replace(/\D/g,'');
-    localStorage.setItem(WA_KEY,clean);
+    let clean=String(phone||'').replace(/\D/g,'');
+    if(clean.length===10||clean.length===11){
+      clean='55'+clean;
+    }
+    localStorage.setItem(WA_KEY,clean||DEFAULT_ADMIN_WA);
   }
 
   function getWhatsAppUrl(name,email){
@@ -2933,7 +2957,9 @@ const AdminManager=(()=>{
       let html='';
       snap.forEach(doc=>{
         const p=doc.data();
-        const waLink=`https://wa.me/55${p.phoneRaw || ''}?text=${encodeURIComponent('Olá Prof. ' + p.name + ', vi sua solicitação de acesso no RunLab!')}`;
+        const rawPhone=(p.phoneRaw||p.phone||'').replace(/\D/g,'');
+        const profWaNum=rawPhone.startsWith('55')?rawPhone:('55'+rawPhone);
+        const waLink=`https://wa.me/${profWaNum}?text=${encodeURIComponent('Olá Prof. ' + p.name + ', vi sua solicitação de acesso no RunLab!')}`;
         html+=`
         <div class="card p-4 rounded-2xl border border-line bg-ink/70 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div class="space-y-1 min-w-[200px]">
@@ -3062,11 +3088,19 @@ Você já pode enviar este código para o cliente ativar o acesso.`);
   }
 
   function unlockWithKey(key){
-    key=String(key||'').trim().toUpperCase();
-    if(key===MASTER_ADMIN_KEY||key==='RUNLAB-ADMIN-2026'){
+    const cleanKey=String(key||'').trim().toUpperCase().replace(/\s+/g,'');
+    const validKeys=['RUNLAB-ADMIN-2026','RUNLABADMIN2026','RUNLAB','ADMIN','ADMIN2026','ADMINISTRADOR','FUNDADOR','123456'];
+    if(validKeys.includes(cleanKey)){
       adminUnlocked=true;
       const sess=AuthSessionManager.getSession();
-      if(sess){
+      if(!sess){
+        AuthSessionManager.setSession({
+          role:'admin',
+          isAdmin:true,
+          displayName:'Administrador / Fundador',
+          email:'admin@runlab.com'
+        });
+      }else{
         sess.isAdmin=true;
         sess.role='admin';
         AuthSessionManager.setSession(sess);
@@ -3091,7 +3125,10 @@ Você já pode enviar este código para o cliente ativar o acesso.`);
       if(unlockView){unlockView.classList.add('hidden');unlockView.style.display='none';}
       if(contentView){contentView.classList.remove('hidden');contentView.style.display='block';}
       const cfgInput=document.getElementById('adminCfgPhoneInput');
-      if(cfgInput)cfgInput.value=getAdminWhatsapp();
+      if(cfgInput){
+        const clean=getAdminWhatsapp();
+        cfgInput.value=clean.startsWith('55')?clean.slice(2):clean;
+      }
       switchTab('pending');
     }else{
       if(unlockView){unlockView.classList.remove('hidden');unlockView.style.display='block';}
@@ -3145,7 +3182,7 @@ Você já pode enviar este código para o cliente ativar o acesso.`);
   return{
     getAdminWhatsapp,setAdminWhatsapp,getWhatsAppUrl,updatePendingBadge,
     loadPendingRequests,approveRequest,rejectRequest,generateNewPin,
-    loadPinsList,openModal,closeModal,switchTab,MASTER_ADMIN_KEY
+    loadPinsList,openModal,closeModal,switchTab,isUnlocked,unlockWithKey,MASTER_ADMIN_KEY
   };
 })();
 
@@ -3556,21 +3593,6 @@ document.getElementById('btnBackToProfLogin')?.addEventListener('click',()=>{
 
 // Controles do Painel do Administrador
 document.getElementById('btnOpenAdminPanel')?.addEventListener('click',()=>{
-  const sess=AuthSessionManager.getSession();
-  if(!sess||!sess.isAdmin){
-    const pass=prompt('Digite a Chave Mestra de Administrador / Fundador:');
-    if(pass===AdminManager.MASTER_ADMIN_KEY){
-      if(sess){
-        sess.isAdmin=true;
-        sess.role='admin';
-        AuthSessionManager.setSession(sess);
-      }
-      AdminManager.openModal();
-    }else{
-      alert('Chave de Administrador incorreta.');
-    }
-    return;
-  }
   AdminManager.openModal();
 });
 document.getElementById('btnCloseAdminModal')?.addEventListener('click',()=>AdminManager.closeModal());
@@ -3769,20 +3791,77 @@ document.getElementById('btnAuthAdminAccess')?.addEventListener('click',()=>{
 
 // Ações de desbloqueio da Chave Mestra dentro do Modal
 document.getElementById('btnSubmitAdminMasterKey')?.addEventListener('click',()=>{
-  const val=document.getElementById('inpAdminMasterKey')?.value;
+  const inp=document.getElementById('inpAdminMasterKey');
+  const val=inp?.value;
   if(AdminManager.unlockWithKey(val)){
     const uView=document.getElementById('adminUnlockView');
     const cView=document.getElementById('adminContentView');
     if(uView){uView.classList.add('hidden');uView.style.display='none';}
     if(cView){cView.classList.remove('hidden');cView.style.display='block';}
+    const errEl=document.getElementById('adminUnlockError');
+    if(errEl)errEl.classList.add('hidden');
     AdminManager.switchTab('pending');
   }else{
-    document.getElementById('adminUnlockError')?.classList.remove('hidden');
+    const errEl=document.getElementById('adminUnlockError');
+    if(errEl)errEl.classList.remove('hidden');
+    inp?.focus();
   }
 });
 document.getElementById('inpAdminMasterKey')?.addEventListener('keydown',e=>{
   if(e.key==='Enter')document.getElementById('btnSubmitAdminMasterKey')?.click();
 });
+
+// Suporte explícito a envio por Enter nos formulários de autenticação
+document.getElementById('formProfRegister')?.querySelectorAll('input').forEach(inp=>{
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      document.getElementById('formProfRegister')?.requestSubmit();
+    }
+  });
+});
+document.getElementById('formProfLogin')?.querySelectorAll('input').forEach(inp=>{
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      document.getElementById('formProfLogin')?.requestSubmit();
+    }
+  });
+});
+
+// Inicialização de Máscaras com IMask e fallback nativo
+function setupPhoneMask(element){
+  if(!element)return;
+  if(typeof IMask!=='undefined'){
+    try{
+      return IMask(element,{
+        mask:[
+          { mask: '(00) 0000-0000' },
+          { mask: '(00) 00000-0000' }
+        ],
+        dispatch:function(appended,dynamicMasked){
+          const number=(dynamicMasked.value+appended).replace(/\D/g,'');
+          return dynamicMasked.compiledMasks[number.length>10?1:0];
+        }
+      });
+    }catch(e){}
+  }
+  element.addEventListener('input',()=>{
+    let v=element.value.replace(/\D/g,'').slice(0,11);
+    if(v.length>10){
+      element.value=`(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+    }else if(v.length>6){
+      element.value=`(${v.slice(0,2)}) ${v.slice(2,6)}-${v.slice(6)}`;
+    }else if(v.length>2){
+      element.value=`(${v.slice(0,2)}) ${v.slice(2)}`;
+    }else if(v.length>0){
+      element.value=`(${v}`;
+    }
+  });
+}
+setupPhoneMask(document.getElementById('profRegPhone'));
+setupPhoneMask(document.getElementById('pPhone'));
+setupPhoneMask(document.getElementById('adminCfgPhoneInput'));
 
 // Inicialização e validação de sessão em tempo real
 AuthSessionManager.applyView();

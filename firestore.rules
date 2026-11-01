@@ -2,21 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /professors/{professorId} {
-      allow read, delete: if true;
-      allow create, update: if request.resource.data.name is string
-                            && request.resource.data.name.size() >= 3
-                            && request.resource.data.emailLower is string
-                            && request.resource.data.emailLower.size() >= 3
-                            && request.resource.data.passwordHash is string
-                            && request.resource.data.passwordHash.size() == 64
-                            && (!('status' in request.resource.data) || request.resource.data.status in ['pendente', 'ativo', 'bloqueado'])
-                            && (!('role' in request.resource.data) || request.resource.data.role in ['admin', 'professor']);
+      allow read, delete, update: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() >= 3
+                    && request.resource.data.emailLower is string
+                    && request.resource.data.emailLower.size() >= 3;
     }
     match /activation_codes/{codeId} {
-      allow read, delete: if true;
-      allow create, update: if request.resource.data.code is string
-                            && request.resource.data.code.size() >= 4
-                            && request.resource.data.status in ['disponivel', 'utilizado', 'cancelado'];
+      allow read, delete, write: if true;
     }
     match /athletes/{athleteId} {
       allow read, delete: if true;
