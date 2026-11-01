@@ -351,10 +351,95 @@ function parseHeartRateMeasurement(dv) {
   return { bpm, contactDetected, energyExpended, rrIntervals };
 }
 
+/* Calcula a velocidade de pico (vPico / vVO2max) considerando exclusivamente os
+   estágios completos de 2 minutos (feature 008). Se o teste for interrompido durante
+   um estágio em curso, o estágio atual incompleto é descartado e considera-se a
+   velocidade do último estágio concluído (anterior). */
+function computeVPeak(startV, completedStages) {
+  const sv = +startV || 0;
+  const stages = Array.isArray(completedStages) ? completedStages : [];
+  if (stages.length > 0) {
+    const last = stages[stages.length - 1];
+    const v = (last && typeof last.v === 'number' && Number.isFinite(last.v))
+      ? last.v
+      : (sv + stages.length - 1);
+    return {
+      vPeak: +v.toFixed(2),
+      completedStagesCount: stages.length,
+      usedPreviousStage: true,
+      fallbackToStart: false
+    };
+  }
+  return {
+    vPeak: +sv.toFixed(2),
+    completedStagesCount: 0,
+    usedPreviousStage: false,
+    fallbackToStart: true
+  };
+}
+
+/* Compara duas avaliações de um mesmo atleta (baseAssessment = anterior,
+   currentAssessment = atual) calculando deltas absolutos, percentuais e
+   pareamento de FC/RPE por velocidade km/h (feature 008). */
+function compareAssessments(baseAssessment, currentAssessment) {
+  if (!baseAssessment || !currentAssessment) return null;
+  function metricDelta(bRaw, cRaw) {
+    const b = (bRaw === '' || bRaw == null || Number.isNaN(+bRaw)) ? null : +bRaw;
+    const c = (cRaw === '' || cRaw == null || Number.isNaN(+cRaw)) ? null : +cRaw;
+    if (b == null || c == null) return { base: b, curr: c, delta: null, pct: null };
+    const delta = +(c - b).toFixed(2);
+    const pct = b !== 0 ? +(((c - b) / Math.abs(b)) * 100).toFixed(1) : null;
+    return { base: b, curr: c, delta, pct };
+  }
+  const bt = baseAssessment.test || {};
+  const ct = currentAssessment.test || {};
+  const metrics = {
+    vPeak: metricDelta(bt.vPeak, ct.vPeak),
+    vo2max: metricDelta(bt.vo2max, ct.vo2max),
+    mets: metricDelta(bt.mets, ct.mets),
+    vt1V: metricDelta(bt.vt1V, ct.vt1V),
+    vt2V: metricDelta(bt.vt2V, ct.vt2V),
+    fcVT1: metricDelta(bt.fcVT1, ct.fcVT1),
+    fcVT2: metricDelta(bt.fcVT2, ct.fcVT2),
+    tteSec: metricDelta(baseAssessment.tte && baseAssessment.tte.sec, currentAssessment.tte && currentAssessment.tte.sec),
+    weight: metricDelta(baseAssessment.profileSnapshot && baseAssessment.profileSnapshot.weight, currentAssessment.profileSnapshot && currentAssessment.profileSnapshot.weight),
+    restHr: metricDelta(baseAssessment.screen && baseAssessment.screen.fc, currentAssessment.screen && currentAssessment.screen.fc)
+  };
+
+  const bStages = Array.isArray(bt.stages) ? bt.stages : [];
+  const cStages = Array.isArray(ct.stages) ? ct.stages : [];
+  const velSet = new Set();
+  bStages.forEach(s => { if (s && Number.isFinite(+s.v)) velSet.add(+(+s.v).toFixed(1)); });
+  cStages.forEach(s => { if (s && Number.isFinite(+s.v)) velSet.add(+(+s.v).toFixed(1)); });
+  const sortedVels = Array.from(velSet).sort((a, b) => a - b);
+
+  const stageComparison = sortedVels.map(v => {
+    const bSt = bStages.find(s => s && +(+s.v).toFixed(1) === v);
+    const cSt = cStages.find(s => s && +(+s.v).toFixed(1) === v);
+    const baseHr = (bSt && bSt.hr != null && bSt.hr !== '' && !Number.isNaN(+bSt.hr)) ? +bSt.hr : null;
+    const currHr = (cSt && cSt.hr != null && cSt.hr !== '' && !Number.isNaN(+cSt.hr)) ? +cSt.hr : null;
+    const deltaHr = (baseHr != null && currHr != null) ? +(currHr - baseHr).toFixed(1) : null;
+    const baseRpe = (bSt && bSt.rpe != null && bSt.rpe !== '' && !Number.isNaN(+bSt.rpe)) ? +bSt.rpe : null;
+    const currRpe = (cSt && cSt.rpe != null && cSt.rpe !== '' && !Number.isNaN(+cSt.rpe)) ? +cSt.rpe : null;
+    const deltaRpe = (baseRpe != null && currRpe != null) ? +(currRpe - baseRpe).toFixed(1) : null;
+    return { v, baseHr, currHr, deltaHr, baseRpe, currRpe, deltaRpe };
+  });
+
+  return {
+    baseId: baseAssessment.id || null,
+    currId: currentAssessment.id || null,
+    baseDate: baseAssessment.dateFormatted || bt.date || '',
+    currDate: currentAssessment.dateFormatted || ct.date || '',
+    metrics,
+    stageComparison
+  };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
     classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
-    evaluateHrSample, computeStableStageHr, assessBtSignalQuality
+    evaluateHrSample, computeStableStageHr, assessBtSignalQuality,
+    computeVPeak, compareAssessments
   };
 }

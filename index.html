@@ -57,13 +57,15 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         <p class="text-[10px] text-slate-400 leading-none mt-1">Triagem • Testes • Zonas • Prescrição</p>
       </div>
     </div>
-    <nav class="flex flex-wrap gap-1.5 ml-auto" id="tabbar">
+    <nav class="flex flex-wrap items-center gap-1.5 ml-auto" id="tabbar">
       <button data-tab="perfil" class="tab-btn active px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">1 · Perfil</button>
       <button data-tab="triagem" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">2 · Triagem & Repouso</button>
       <button data-tab="teste" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">3 · Teste Incremental</button>
       <button data-tab="tolerancia" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">4 · Tolerância</button>
       <button data-tab="zonas" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">5 · Zonas</button>
       <button data-tab="plano" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">6 · Plano</button>
+      <button data-tab="atletas" class="tab-btn px-3 py-2 rounded-lg text-xs border border-sky-400/40 bg-panel hover:border-sky-400 text-sky-200 transition">7 · Atletas & Evolução</button>
+      <button id="btnSaveCloud" type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-lime/15 text-lime border border-lime/40 hover:bg-lime/25 transition" title="Salvar perfil e avaliação atual no banco de dados em nuvem (Firebase Firestore)">☁ Salvar na Nuvem</button>
     </nav>
   </div>
 </header>
@@ -72,9 +74,15 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 
 <!-- ============ 1. PERFIL ============ -->
 <section id="tab-perfil" class="tab-panel space-y-6">
-  <div class="fadein">
-    <h2 class="text-2xl font-extrabold">Perfil do Aluno</h2>
-    <p class="text-sm text-slate-400 mt-1">Dados que alimentam triagem, zonas e prescrição. Salvos automaticamente no navegador.</p>
+  <div class="fadein flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-extrabold">Perfil do Aluno</h2>
+      <p class="text-sm text-slate-400 mt-1">Dados que alimentam triagem, zonas, prescrição e histórico em nuvem no Firebase Firestore.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span id="activeAthleteChip" class="chip bg-sky-400/10 text-sky-300 border border-sky-400/30 hidden"></span>
+      <button type="button" data-goto="atletas" class="goto text-xs border border-sky-400/40 text-sky-300 rounded-xl px-3 py-2 hover:bg-sky-400/10 transition">📂 Buscar / Comparar Atletas →</button>
+    </div>
   </div>
   <div class="grid md:grid-cols-3 gap-4 fadein">
     <div class="card rounded-2xl p-5 md:col-span-2">
@@ -86,8 +94,12 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         <label class="block text-xs text-slate-400">Sexo
           <select id="pSex" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="m">Masculino</option><option value="f">Feminino</option></select></label>
+        <label class="block text-xs text-slate-400">Peso (kg)
+          <input id="pWeight" type="number" step="0.1" min="30" max="250" placeholder="70.0" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Altura (cm)
           <input id="pHeight" type="number" min="100" max="230" placeholder="170" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">FC máx conhecida (bpm · opcional)
+          <input id="pHrMax" type="number" min="100" max="230" placeholder="Auto (208 - 0,7×idade)" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Nível de treino
           <select id="pLevel" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="ini">Iniciante</option><option value="int" selected>Intermediário</option><option value="ava">Avançado</option></select></label>
@@ -101,12 +113,13 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <ol class="mt-3 space-y-2 text-xs text-slate-300 leading-relaxed">
         <li><b class="text-white">1.</b> Perfil do aluno.</li>
         <li><b class="text-white">2.</b> <b>Triagem</b>: PA e FC de repouso, limitações clínicas, sinais e sintomas → liberação e escolha do protocolo.</li>
-        <li><b class="text-white">3.</b> <b>Teste incremental</b> (2 min · +1 km/h · 1%) com Talk Test, RPE e sinais/sintomas → VO₂máx, vVO₂max, VT1/RCP.</li>
+        <li><b class="text-white">3.</b> <b>Teste incremental</b> (2 min · +1 km/h · 1%) com Talk Test, RPE e sinais/sintomas → VO₂máx, vVO₂max (último estágio completo), VT1/RCP.</li>
         <li><b class="text-white">4.</b> <b>Teste de tolerância</b> (tlim na vVO₂max).</li>
         <li><b class="text-white">5.</b> <b>Zonas</b> individuais (FC, velocidade, pace, RPE).</li>
         <li><b class="text-white">6.</b> <b>Plano semanal</b> conforme nº de sessões, objetivo e fase.</li>
+        <li><b class="text-white">7.</b> <b>Atletas & Evolução</b>: salvar na nuvem (Firestore) e comparar evoluções.</li>
       </ol>
-      <button id="btnResetAll" class="mt-4 w-full text-xs border border-rose-500/40 text-rose-300 rounded-xl py-2 hover:bg-rose-500/10 transition">Apagar todos os dados</button>
+      <button id="btnResetAll" class="mt-4 w-full text-xs border border-rose-500/40 text-rose-300 rounded-xl py-2 hover:bg-rose-500/10 transition">Limpar sessão atual (Novo Aluno)</button>
     </div>
   </div>
 </section>
@@ -461,6 +474,86 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
   </div>
 </section>
 
+<!-- ============ 7. ATLETAS & EVOLUÇÃO (FIREBASE FIRESTORE) ============ -->
+<section id="tab-atletas" class="tab-panel hidden space-y-6">
+  <div class="fadein flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-extrabold">Banco de Dados de Atletas & Comparação de Evolução</h2>
+      <p class="text-sm text-slate-400 mt-1">Histórico completo salvo em nuvem no <b class="text-slate-200">Firebase Firestore</b>. Acesse avaliações passadas, inicie reavaliações mantendo o perfil do atleta e compare a evolução lado a lado.</p>
+    </div>
+    <span id="cloudStatusBadge" class="chip bg-sky-400/10 text-sky-300 border border-sky-400/30">☁ Conectando ao Firestore…</span>
+  </div>
+
+  <!-- Barra de salvamento e busca -->
+  <div class="card rounded-2xl p-5 space-y-4 fadein no-print">
+    <div class="grid md:grid-cols-12 gap-3 items-end">
+      <label class="block text-xs text-slate-400 md:col-span-4">Rótulo da avaliação atual (opcional)
+        <input id="athSaveLabel" type="text" placeholder="Ex.: Avaliação Inicial · Ciclo 1" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+      <div class="md:col-span-4 flex gap-2">
+        <button id="btnSaveCurrentToCloud" type="button" class="w-full px-4 py-2.5 rounded-xl bg-lime text-ink text-xs font-extrabold hover:brightness-110 transition">☁ Salvar Avaliação Atual no Banco</button>
+      </div>
+      <div class="md:col-span-4 flex flex-wrap gap-2 justify-end">
+        <button id="btnRefreshCloud" type="button" class="px-3 py-2.5 rounded-xl border border-line text-xs hover:border-lime/60 transition">🔄 Atualizar Nuvem</button>
+        <button id="btnExportCloud" type="button" class="px-3 py-2.5 rounded-xl border border-line text-xs hover:border-sky-400/60 transition">⬇ Exportar JSON</button>
+        <label class="px-3 py-2.5 rounded-xl border border-line text-xs hover:border-sky-400/60 transition cursor-pointer">⬆ Importar JSON<input id="inpImportCloud" type="file" accept=".json,application/json" class="hidden"></label>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 pt-2 border-t border-line/60">
+      <div class="flex-1 min-w-[220px]">
+        <input id="athSearchInput" type="search" placeholder="🔍 Buscar atleta por nome…" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2 text-xs focus:border-lime outline-none">
+      </div>
+      <span id="athCountSummary" class="text-xs text-slate-400 num">0 atletas na nuvem</span>
+    </div>
+  </div>
+
+  <!-- Painel de Comparação de Evolução (US3) -->
+  <div id="athComparePanel" class="card rounded-2xl p-6 space-y-5 hidden fadein">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <span class="chip bg-lime/10 text-lime border border-lime/30">⚖ Comparativo Longitudinal de Evolução</span>
+        <h3 id="cmpAthleteTitle" class="text-lg font-extrabold text-white mt-1">Atleta</h3>
+      </div>
+      <button id="btnCloseCompare" type="button" class="text-xs border border-line rounded-lg px-3 py-1.5 hover:border-rose-400/60 text-slate-300">✕ Fechar comparativo</button>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <label class="block text-xs text-slate-400">Avaliação Base (Anterior / Referência)
+        <select id="cmpBaseSelect" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none"></select>
+      </label>
+      <label class="block text-xs text-slate-400">Avaliação Atual (Reavaliação)
+        <select id="cmpCurrSelect" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none"></select>
+      </label>
+    </div>
+    <div id="cmpMetricsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+    <div class="rounded-xl border border-line bg-ink overflow-hidden">
+      <div class="px-4 py-2.5 text-xs font-bold text-slate-300 bg-panel2 flex flex-wrap justify-between gap-2">
+        <span>Comparativo de Frequência Cardíaca e RPE por Velocidade (km/h)</span>
+        <span class="text-[11px] font-normal text-slate-400">Redução de FC (Δ negativo) na mesma velocidade indica melhora da economia cardiovascular</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs num text-center">
+          <thead class="text-slate-400 border-b border-line bg-ink">
+            <tr>
+              <th class="py-2 px-3">Velocidade</th>
+              <th class="py-2 px-3">FC Base</th>
+              <th class="py-2 px-3">FC Atual</th>
+              <th class="py-2 px-3">Δ FC (bpm)</th>
+              <th class="py-2 px-3">RPE Base</th>
+              <th class="py-2 px-3">RPE Atual</th>
+              <th class="py-2 px-3">Δ RPE</th>
+            </tr>
+          </thead>
+          <tbody id="cmpStageRows" class="divide-y divide-line/60"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Atletas Salvos no Firestore (US2) -->
+  <div id="athListContainer" class="space-y-4">
+    <div class="card rounded-2xl p-8 text-center text-sm text-slate-400">Carregando atletas do banco de dados em nuvem…</div>
+  </div>
+</section>
+
 <div id="reportView" class="hidden"></div>
 </main>
 
@@ -472,8 +565,8 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 <script>
 /* ================= ESTADO ================= */
 const LS_KEY='runlab_state_v2';
-let state={profile:{age:30,sex:'m',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},plan:{freq:3,goal:'cond',phase:'base'}};
-try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})});}catch(e){}
+let state={currentAthleteId:null,currentAssessmentId:null,profile:{name:'',age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},plan:{freq:3,goal:'cond',phase:'base'}};
+try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{profile:Object.assign({name:'',age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},s.profile||{}),screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})});}catch(e){}
 const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
 const $=q=>document.querySelector(q);
 
@@ -491,14 +584,28 @@ function showTab(id){
   window.scrollTo({top:0,behavior:'smooth'});
   if(id==='zonas')renderZones();if(id==='plano')renderPlan();if(id==='tolerancia')renderTte();
   if(id==='teste')renderTestView();if(id==='triagem')renderScreen();
+  if(id==='atletas'&&typeof AthleteCloudDB!=='undefined')AthleteCloudDB.renderUI();
 }
 document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 document.querySelectorAll('.goto').forEach(b=>b.onclick=()=>showTab(b.dataset.goto));
 
 /* ================= PERFIL ================= */
-const pFields={pName:'name',pAge:'age',pSex:'sex',pHeight:'height',pLevel:'level',pGoal:'goal'};
-Object.entries(pFields).forEach(([id,key])=>{const el=$('#'+id);el.value=state.profile[key]??el.value;
-  el.addEventListener('input',()=>{state.profile[key]=el.value;save();});});
+const pFields={pName:'name',pAge:'age',pSex:'sex',pWeight:'weight',pHeight:'height',pHrMax:'hrMax',pLevel:'level',pGoal:'goal'};
+function syncProfileInputs(){
+  Object.entries(pFields).forEach(([id,key])=>{
+    const el=$('#'+id);
+    if(el)el.value=state.profile[key]??'';
+  });
+  const chip=$('#activeAthleteChip');
+  if(chip){
+    const hasName=state.profile.name&&String(state.profile.name).trim().length>=2;
+    chip.classList.toggle('hidden',!hasName);
+    if(hasName)chip.textContent='🏃 Atleta ativo: '+state.profile.name+(state.currentAthleteId?' (vinculado à nuvem)':'');
+  }
+}
+Object.entries(pFields).forEach(([id,key])=>{const el=$('#'+id);if(!el)return;el.value=state.profile[key]??el.value;
+  el.addEventListener('input',()=>{state.profile[key]=el.value;save();syncProfileInputs();});});
+syncProfileInputs();
 const hrMaxUsed=()=>computeHrMax(state.profile.hrMax,state.profile.age);
 
 /* ================= BIPES ================= */
@@ -706,18 +813,22 @@ $('#btnStart').onclick=()=>{
 $('#btnPause').onclick=()=>{tmr.paused=!tmr.paused;$('#btnPause').textContent=tmr.paused?'▶ Retomar':'⏸ Pausar';};
 $('#btnStop').onclick=()=>finishTest();
 
-/* deriveVTs() vem de assets/calc.js */
+/* deriveVTs() e computeVPeak() vêm de assets/calc.js */
 function finishTest(){
   if(!tmr.running)return;
+  if(tmr.stages.length===0&&!confirm('Nenhum estágio completo de 2 minutos foi concluído ainda. Deseja encerrar o teste mesmo assim (considerando a velocidade inicial)?'))return;
   cancelAnimationFrame(tmr.raf);tmr.running=false;
-  const frac=Math.min(1,tmr.stageMs/STAGE_MS);
   const startV=+$('#tStart').value;
-  const vPeak=+(startV+tmr.stage+frac).toFixed(2);
+  /* Regra feature 008: quando interrompido e não concluído o estágio atual, considera-se o km/h anterior (último estágio completo) */
+  const vpRes=computeVPeak(startV,tmr.stages);
+  const vPeak=vpRes.vPeak;
+  const interruptedSpeed=tmr.stageMs>0?+(startV+tmr.stage).toFixed(1):null;
   const vo2=vo2At(vPeak);
   const vt=deriveVTs(tmr.stages,startV,vPeak);
   state.test={vPeak,vo2max:+vo2.toFixed(1),mets:+(vo2/3.5).toFixed(1),
     totalSec:Math.round(tmr.totalMs/1000),stages:tmr.stages.map(s=>({...s})),
-    startV,hrMaxUsed:hrMaxUsed(),date:new Date().toLocaleDateString('pt-BR'),...vt};
+    startV,hrMaxUsed:hrMaxUsed(),completedStagesCount:vpRes.completedStagesCount,
+    interruptedSpeed,date:new Date().toLocaleDateString('pt-BR'),...vt};
   save();beep(3,true);
   tmr={running:false,paused:false,stage:0,stageMs:0,totalMs:0,lastTs:null,raf:null,stages:[]};
   $('#btnStart').classList.remove('hidden');$('#btnPause').classList.add('hidden');$('#btnStop').classList.add('hidden');
@@ -738,9 +849,9 @@ function diagnose(vo2){
 /* pace() vem de assets/calc.js */
 function renderResults(){
   const t=state.test;
-  $('#resDate').textContent='realizado em '+t.date;
+  $('#resDate').textContent='realizado em '+t.date+(t.interruptedSpeed&&t.stages.length?` · interrompido em ${t.interruptedSpeed.toFixed(1)} km/h → considerado estágio anterior completo (${t.vPeak.toFixed(1)} km/h)`:'');
   const metrics=[
-    ['vPico / vVO₂max',t.vPeak.toFixed(1)+' km/h','pace '+pace(t.vPeak)],
+    ['vPico / vVO₂max',t.vPeak.toFixed(1)+' km/h','pace '+pace(t.vPeak)+' · último estágio completo'],
     ['VO₂máx estimado',t.vo2max.toFixed(1),'ml/kg·min · '+(t.mets).toFixed(1)+' METs'],
     ['VT1',t.vt1V!=null?t.vt1V.toFixed(1)+' km/h':'não identificado','fala em frases (Talk Test)'],
     ['RCP / VT2 (LA)',t.vt2V!=null?t.vt2V.toFixed(1)+' km/h':'não identificado','fala impossível (Talk Test)']
@@ -1505,6 +1616,488 @@ document.getElementById('btnBtWide')?.addEventListener('click',()=>{
   ensure();
   setInterval(()=>BluetoothHR.render(),1000); /* expira leituras antigas na UI */
 })();
+</script>
+
+<!-- ================= BANCO DE DADOS EM NUVEM FIREBASE FIRESTORE & COMPARAÇÃO (feature 008) ================= -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+const AthleteCloudDB=(()=>{
+  const PROJECT_ID='teste-incremental-56aeb';
+  const COLLECTION='athletes';
+  let db=null,athletesCache=[],isReady=false,comparingAthleteId=null;
+
+  function normName(s){
+    return String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  }
+  function escHtml(s){
+    return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+  }
+  function setStatus(text,tone='sky'){
+    const el=document.getElementById('cloudStatusBadge');
+    if(!el)return;
+    el.textContent=text;
+    const styles={
+      sky:'chip bg-sky-400/10 text-sky-300 border border-sky-400/30',
+      lime:'chip bg-lime/15 text-lime border border-lime/40',
+      amber:'chip bg-amber-400/15 text-amber-300 border border-amber-400/40',
+      rose:'chip bg-rose-500/15 text-rose-300 border border-rose-500/40'
+    };
+    el.className=styles[tone]||styles.sky;
+  }
+
+  async function init(){
+    try{
+      if(typeof firebase==='undefined'||!firebase.firestore){
+        setStatus('⚠ SDK do Firebase indisponível (verifique a internet)','rose');
+        return false;
+      }
+      if(!firebase.apps.length){
+        firebase.initializeApp({projectId:PROJECT_ID});
+      }
+      db=firebase.firestore();
+      isReady=true;
+      setStatus('☁ Conectado ao Firebase Firestore','lime');
+      await listAthletes();
+      return true;
+    }catch(err){
+      console.error('Erro ao inicializar Firestore:',err);
+      setStatus('⚠ Erro ao conectar ao Firestore','rose');
+      return false;
+    }
+  }
+
+  async function listAthletes(){
+    if(!db&&!(await init()))return[];
+    try{
+      setStatus('☁ Sincronizando atletas no Firestore…','sky');
+      const snap=await db.collection(COLLECTION).get();
+      const list=[];
+      snap.forEach(doc=>{
+        const d=doc.data()||{};
+        list.push(Object.assign({id:doc.id,assessments:[]},d,{id:doc.id}));
+      });
+      list.sort((a,b)=>(b.updatedAtMs||0)-(a.updatedAtMs||0));
+      athletesCache=list;
+      setStatus(`☁ Firestore ativo · ${list.length} atleta(s) na nuvem`,'lime');
+      renderList();
+      if(comparingAthleteId)renderCompare(comparingAthleteId);
+      return list;
+    }catch(err){
+      console.error('Erro ao listar atletas do Firestore:',err);
+      setStatus('⚠ Falha ao ler Firestore (verifique regras/conexão)','rose');
+      renderList(err.message);
+      return athletesCache;
+    }
+  }
+
+  function buildCurrentSnapshot(label){
+    const now=Date.now();
+    const id=state.currentAssessmentId||('asmt_'+now+'_'+Math.random().toString(36).slice(2,6));
+    const dateFormatted=(state.test&&state.test.date)||new Date(now).toLocaleDateString('pt-BR');
+    return JSON.parse(JSON.stringify({
+      id,
+      createdAtMs:now,
+      dateFormatted,
+      label:String(label||'').trim()||(state.test?`Teste vPico ${state.test.vPeak.toFixed(1)} km/h`:'Triagem / Perfil'),
+      profileSnapshot:{
+        name:state.profile.name||'',
+        age:state.profile.age||30,
+        sex:state.profile.sex||'m',
+        weight:state.profile.weight||'',
+        height:state.profile.height||'',
+        hrMax:state.profile.hrMax||'',
+        level:state.profile.level||'int',
+        goal:state.profile.goal||'cond'
+      },
+      screen:state.screen||{},
+      test:state.test||null,
+      tte:state.tte||null,
+      tteVitals:state.tteVitals||{pre:{pa:'',fc:'',spo2:''}},
+      plan:state.plan||{freq:3,goal:'cond',phase:'base'}
+    }));
+  }
+
+  async function saveCurrentAssessment(customLabel){
+    if(!db&&!(await init())){
+      alert('Não foi possível conectar ao Firebase Firestore. Verifique sua conexão com a internet.');
+      return null;
+    }
+    let name=String(state.profile.name||'').trim();
+    if(name.length<2){
+      const asked=prompt('Informe o nome do atleta (mínimo 2 caracteres) para salvar no banco de dados em nuvem:',name);
+      if(!asked||asked.trim().length<2)return null;
+      name=asked.trim();
+      state.profile.name=name;
+      syncProfileInputs();
+      save();
+    }
+    const labelInput=document.getElementById('athSaveLabel');
+    const label=customLabel!==undefined?customLabel:(labelInput?labelInput.value:'');
+    const nLower=normName(name);
+    const now=Date.now();
+
+    try{
+      setStatus('☁ Salvando no Firebase Firestore…','amber');
+      if(!athletesCache.length)await listAthletes();
+      let existing=null;
+      if(state.currentAthleteId){
+        existing=athletesCache.find(a=>a.id===state.currentAthleteId);
+      }
+      if(!existing){
+        existing=athletesCache.find(a=>normName(a.name)===nLower);
+      }
+      const athId=existing?existing.id:('ath_'+now+'_'+Math.random().toString(36).slice(2,6));
+      const snap=buildCurrentSnapshot(label);
+      const prevAssessments=existing&&Array.isArray(existing.assessments)?[...existing.assessments]:[];
+      const idx=prevAssessments.findIndex(a=>a.id===snap.id);
+      if(idx>=0)prevAssessments[idx]=snap;
+      else prevAssessments.unshift(snap);
+      prevAssessments.sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));
+
+      const docData=JSON.parse(JSON.stringify({
+        id:athId,
+        name,
+        nameLower:nLower,
+        profile:{
+          name,
+          age:state.profile.age||30,
+          sex:state.profile.sex||'m',
+          weight:state.profile.weight||'',
+          height:state.profile.height||'',
+          hrMax:state.profile.hrMax||'',
+          level:state.profile.level||'int',
+          goal:state.profile.goal||'cond'
+        },
+        assessments:prevAssessments,
+        createdAtMs:existing&&existing.createdAtMs?existing.createdAtMs:now,
+        updatedAtMs:now
+      }));
+
+      await db.collection(COLLECTION).doc(athId).set(docData);
+      state.currentAthleteId=athId;
+      state.currentAssessmentId=snap.id;
+      save();
+      syncProfileInputs();
+      if(labelInput)labelInput.value='';
+      await listAthletes();
+      setStatus(`☁ Salvo na nuvem: ${name} (${prevAssessments.length} avaliação/ões)`,'lime');
+      const btnHdr=document.getElementById('btnSaveCloud');
+      if(btnHdr){const old=btnHdr.textContent;btnHdr.textContent='✓ Salvo na Nuvem!';setTimeout(()=>{btnHdr.textContent=old;},2200);}
+      return{athlete:docData,assessment:snap};
+    }catch(err){
+      console.error('Erro ao salvar no Firestore:',err);
+      setStatus('⚠ Erro ao gravar no Firestore','rose');
+      alert('Erro ao salvar no Firebase Firestore: '+err.message);
+      return null;
+    }
+  }
+
+  function applyStateToUI(){
+    syncProfileInputs();
+    ['sPas','sPad','sFc','sSpo2','sGlicose'].forEach(id=>{
+      const key=id.slice(1).toLowerCase();
+      const el=document.getElementById(id);
+      if(el)el.value=state.screen[key]??'';
+    });
+    buildChecks();
+    renderScreen();
+    renderTestView();
+    renderTte();
+    renderZones();
+    renderPlan();
+  }
+
+  async function startNewAssessmentForAthlete(athleteId){
+    const ath=athletesCache.find(a=>a.id===athleteId);
+    if(!ath)return;
+    state={
+      currentAthleteId:ath.id,
+      currentAssessmentId:null,
+      profile:Object.assign({name:ath.name,age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},ath.profile||{}),
+      screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},
+      test:null,
+      tte:null,
+      tteVitals:{pre:{pa:'',fc:'',spo2:''}},
+      plan:{freq:3,goal:(ath.profile&&ath.profile.goal)||'cond',phase:'base'}
+    };
+    save();
+    applyStateToUI();
+    showTab('triagem');
+  }
+
+  async function loadAssessment(athleteId,assessmentId){
+    const ath=athletesCache.find(a=>a.id===athleteId);
+    if(!ath)return;
+    const asmt=(ath.assessments||[]).find(a=>a.id===assessmentId);
+    if(!asmt)return;
+    state={
+      currentAthleteId:ath.id,
+      currentAssessmentId:asmt.id,
+      profile:Object.assign({name:ath.name,age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},ath.profile||{},asmt.profileSnapshot||{},{name:ath.name}),
+      screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},asmt.screen||{}),
+      test:asmt.test?JSON.parse(JSON.stringify(asmt.test)):null,
+      tte:asmt.tte?JSON.parse(JSON.stringify(asmt.tte)):null,
+      tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},asmt.tteVitals||{}),
+      plan:Object.assign({freq:3,goal:'cond',phase:'base'},asmt.plan||{})
+    };
+    save();
+    applyStateToUI();
+    showTab(state.test?'teste':'perfil');
+  }
+
+  async function deleteAssessment(athleteId,assessmentId){
+    const ath=athletesCache.find(a=>a.id===athleteId);
+    if(!ath||!confirm(`Excluir esta avaliação de ${ath.name} do banco de dados em nuvem?`))return;
+    const next=(ath.assessments||[]).filter(a=>a.id!==assessmentId);
+    const updated=Object.assign({},ath,{assessments:next,updatedAtMs:Date.now()});
+    await db.collection(COLLECTION).doc(athleteId).set(updated);
+    if(state.currentAssessmentId===assessmentId)state.currentAssessmentId=null;
+    save();
+    await listAthletes();
+  }
+
+  async function deleteAthlete(athleteId){
+    const ath=athletesCache.find(a=>a.id===athleteId);
+    if(!ath||!confirm(`Excluir permanentemente o atleta "${ath.name}" e todas as suas avaliações do Firebase Firestore?`))return;
+    await db.collection(COLLECTION).doc(athleteId).delete();
+    if(state.currentAthleteId===athleteId){state.currentAthleteId=null;state.currentAssessmentId=null;save();syncProfileInputs();}
+    if(comparingAthleteId===athleteId){comparingAthleteId=null;document.getElementById('athComparePanel')?.classList.add('hidden');}
+    await listAthletes();
+  }
+
+  function renderCompare(athleteId,baseIdOverride,currIdOverride){
+    const panel=document.getElementById('athComparePanel');
+    const ath=athletesCache.find(a=>a.id===athleteId);
+    if(!panel||!ath||!Array.isArray(ath.assessments)||ath.assessments.length<2){
+      if(panel)panel.classList.add('hidden');
+      if(ath&&(!ath.assessments||ath.assessments.length<2)){
+        alert(`O atleta "${ath.name}" possui apenas ${(ath.assessments||[]).length} avaliação salva. Salve pelo menos 2 avaliações em datas/momentos diferentes para comparar a evolução.`);
+      }
+      return;
+    }
+    comparingAthleteId=athleteId;
+    panel.classList.remove('hidden');
+    document.getElementById('cmpAthleteTitle').textContent=`${ath.name} · Comparativo de Evolução (${ath.assessments.length} avaliações)`;
+
+    /* Ordena cronologicamente (mais antiga -> mais recente) para preencher os seletores */
+    const chronological=[...ath.assessments].sort((a,b)=>(a.createdAtMs||0)-(b.createdAtMs||0));
+    const baseSel=document.getElementById('cmpBaseSelect');
+    const currSel=document.getElementById('cmpCurrSelect');
+    const defBaseId=baseIdOverride||chronological[Math.max(0,chronological.length-2)].id;
+    const defCurrId=currIdOverride||chronological[chronological.length-1].id;
+
+    const optHtml=chronological.map((a,i)=>{
+      const vp=a.test&&a.test.vPeak?`${a.test.vPeak.toFixed(1)} km/h`:'s/ teste';
+      return `<option value="${escHtml(a.id)}">#${i+1} · ${escHtml(a.dateFormatted)} — ${escHtml(a.label||'Avaliação')} (${vp})</option>`;
+    }).join('');
+    baseSel.innerHTML=optHtml;
+    currSel.innerHTML=optHtml;
+    baseSel.value=defBaseId;
+    currSel.value=defCurrId;
+
+    const baseRec=chronological.find(a=>a.id===baseSel.value)||chronological[0];
+    const currRec=chronological.find(a=>a.id===currSel.value)||chronological[chronological.length-1];
+    const cmp=compareAssessments(baseRec,currRec);
+    if(!cmp)return;
+
+    function fmtDelta(d,unit='',invertGood=false){
+      if(!d||d.delta==null)return '<span class="text-slate-500">sem par</span>';
+      const sign=d.delta>0?'+':'';
+      const good=invertGood?(d.delta<0):(d.delta>0);
+      const col=d.delta===0?'text-slate-300':(good?'text-lime':'text-rose-300');
+      const pctStr=d.pct!=null?` (${d.pct>0?'+':''}${d.pct}%)`:'';
+      return `<span class="num font-bold ${col}">${sign}${d.delta}${unit}${pctStr}</span>`;
+    }
+    const m=cmp.metrics;
+    const cards=[
+      ['vPico / vVO₂max',m.vPeak.base!=null?m.vPeak.base.toFixed(1)+' → '+(m.vPeak.curr?.toFixed(1)??'—')+' km/h':'—',fmtDelta(m.vPeak,' km/h',false)],
+      ['VO₂máx estimado',m.vo2max.base!=null?m.vo2max.base.toFixed(1)+' → '+(m.vo2max.curr?.toFixed(1)??'—')+' ml/kg·min':'—',fmtDelta(m.vo2max,' ml',false)],
+      ['VT1 (Limiar 1)',m.vt1V.base!=null?m.vt1V.base.toFixed(1)+' → '+(m.vt1V.curr?.toFixed(1)??'—')+' km/h':'—',fmtDelta(m.vt1V,' km/h',false)],
+      ['RCP / VT2 (Limiar 2)',m.vt2V.base!=null?m.vt2V.base.toFixed(1)+' → '+(m.vt2V.curr?.toFixed(1)??'—')+' km/h':'—',fmtDelta(m.vt2V,' km/h',false)],
+      ['Tolerância (tlim)',m.tteSec.base!=null?fmtMS(m.tteSec.base)+' → '+(m.tteSec.curr!=null?fmtMS(m.tteSec.curr):'—'):'—',fmtDelta(m.tteSec,' s',false)],
+      ['Peso Corporal',m.weight.base!=null?m.weight.base+' → '+(m.weight.curr??'—')+' kg':'—',fmtDelta(m.weight,' kg',true)],
+      ['FC de Repouso',m.restHr.base!=null?m.restHr.base+' → '+(m.restHr.curr??'—')+' bpm':'—',fmtDelta(m.restHr,' bpm',true)],
+      ['METs de Pico',m.mets.base!=null?m.mets.base.toFixed(1)+' → '+(m.mets.curr?.toFixed(1)??'—')+' METs':'—',fmtDelta(m.mets,' METs',false)]
+    ];
+    document.getElementById('cmpMetricsGrid').innerHTML=cards.map(c=>`
+      <div class="rounded-xl border border-line bg-ink p-3.5">
+        <div class="text-[10px] uppercase tracking-wider text-slate-400">${c[0]}</div>
+        <div class="num text-xs text-slate-200 mt-1">${c[1]}</div>
+        <div class="text-xs mt-1">${c[2]}</div>
+      </div>`).join('');
+
+    const tbody=document.getElementById('cmpStageRows');
+    if(!cmp.stageComparison.length){
+      tbody.innerHTML='<tr><td colspan="7" class="py-4 text-slate-500 font-display">Nenhum estágio de corrida nas avaliações selecionadas.</td></tr>';
+    }else{
+      tbody.innerHTML=cmp.stageComparison.map(r=>{
+        const dHr=r.deltaHr==null?'—':`<span class="font-bold ${r.deltaHr<0?'text-lime':r.deltaHr>0?'text-amber-300':'text-slate-300'}">${r.deltaHr>0?'+':''}${r.deltaHr} bpm</span>`;
+        const dRpe=r.deltaRpe==null?'—':`<span class="${r.deltaRpe<0?'text-lime':r.deltaRpe>0?'text-amber-300':'text-slate-300'}">${r.deltaRpe>0?'+':''}${r.deltaRpe}</span>`;
+        return `<tr>
+          <td class="py-2 px-3 font-bold text-white">${r.v.toFixed(1)} km/h</td>
+          <td class="py-2 px-3">${r.baseHr??'—'}</td>
+          <td class="py-2 px-3">${r.currHr??'—'}</td>
+          <td class="py-2 px-3">${dHr}</td>
+          <td class="py-2 px-3">${r.baseRpe??'—'}</td>
+          <td class="py-2 px-3">${r.currRpe??'—'}</td>
+          <td class="py-2 px-3">${dRpe}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  function renderList(errMsg){
+    const box=document.getElementById('athListContainer');
+    const countEl=document.getElementById('athCountSummary');
+    if(!box)return;
+    const q=normName(document.getElementById('athSearchInput')?.value||'');
+    const filtered=athletesCache.filter(a=>!q||normName(a.name).includes(q));
+    if(countEl)countEl.textContent=`${filtered.length} de ${athletesCache.length} atleta(s) na nuvem`;
+
+    if(errMsg&&!athletesCache.length){
+      box.innerHTML=`<div class="card rounded-2xl p-6 text-center text-xs text-rose-300">Não foi possível carregar a coleção do Firestore: ${escHtml(errMsg)}</div>`;
+      return;
+    }
+    if(!filtered.length){
+      box.innerHTML=`<div class="card rounded-2xl p-8 text-center text-sm text-slate-400">Nenhum atleta encontrado no banco em nuvem. Preencha os dados do aluno e clique em <b class="text-lime">☁ Salvar Avaliação Atual no Banco</b>.</div>`;
+      return;
+    }
+
+    box.innerHTML=filtered.map(ath=>{
+      const asmts=Array.isArray(ath.assessments)?ath.assessments:[];
+      const latest=asmts[0]||null;
+      const latestTest=latest&&latest.test?latest.test:null;
+      const isCurrent=state.currentAthleteId===ath.id;
+      return `<div class="card rounded-2xl p-5 space-y-4 ${isCurrent?'border-lime/50':''}">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-extrabold text-white">${escHtml(ath.name)}</h3>
+              ${isCurrent?'<span class="chip bg-lime/15 text-lime border border-lime/40">Ativo na sessão</span>':''}
+              <span class="chip bg-panel2 text-slate-300 border border-line num">${asmts.length} avaliação(ões)</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+              ${ath.profile?.age?ath.profile.age+' anos · ':''}${ath.profile?.sex==='f'?'Feminino':'Masculino'}${ath.profile?.weight?' · '+ath.profile.weight+' kg':''}
+              ${latestTest?` · Último vPico: <b class="text-lime num">${latestTest.vPeak.toFixed(1)} km/h</b> (VO₂máx ${latestTest.vo2max.toFixed(1)} ml/kg·min em ${escHtml(latest.dateFormatted)})`:''}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-ath-new="${escHtml(ath.id)}" class="px-3 py-1.5 rounded-xl bg-lime text-ink text-xs font-bold hover:brightness-110 transition">+ Nova Avaliação</button>
+            <button type="button" data-ath-cmp="${escHtml(ath.id)}" class="px-3 py-1.5 rounded-xl border border-sky-400/50 text-sky-300 text-xs font-bold hover:bg-sky-400/10 transition ${asmts.length<2?'opacity-50':''}">⚖ Comparar Evolução (${asmts.length})</button>
+            <button type="button" data-ath-del="${escHtml(ath.id)}" class="px-2.5 py-1.5 rounded-xl border border-rose-500/40 text-rose-300 text-xs hover:bg-rose-500/10 transition" title="Excluir atleta">🗑</button>
+          </div>
+        </div>
+        ${asmts.length?`
+        <div class="rounded-xl border border-line bg-ink overflow-hidden">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-panel2 text-slate-400">
+              <tr>
+                <th class="py-2 px-3">Data</th>
+                <th class="py-2 px-3">Rótulo</th>
+                <th class="py-2 px-3 num">Peso</th>
+                <th class="py-2 px-3 num">vPico</th>
+                <th class="py-2 px-3 num">VO₂máx</th>
+                <th class="py-2 px-3 num">VT1 / VT2</th>
+                <th class="py-2 px-3 num">tlim</th>
+                <th class="py-2 px-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line/60">
+              ${asmts.map(a=>{
+                const t=a.test;
+                const activeAsmt=state.currentAssessmentId===a.id;
+                return `<tr class="${activeAsmt?'bg-lime/5':''}">
+                  <td class="py-2 px-3 num text-slate-200">${escHtml(a.dateFormatted)}</td>
+                  <td class="py-2 px-3 font-medium text-white">${escHtml(a.label||'Avaliação')}${activeAsmt?' <span class="text-[10px] text-lime font-bold">(aberta)</span>':''}</td>
+                  <td class="py-2 px-3 num text-slate-300">${a.profileSnapshot?.weight?a.profileSnapshot.weight+' kg':'—'}</td>
+                  <td class="py-2 px-3 num font-bold text-lime">${t?t.vPeak.toFixed(1)+' km/h':'—'}</td>
+                  <td class="py-2 px-3 num text-slate-200">${t?t.vo2max.toFixed(1)+' ml':'—'}</td>
+                  <td class="py-2 px-3 num text-slate-300">${t?(t.vt1V!=null?t.vt1V.toFixed(1):'—')+' / '+(t.vt2V!=null?t.vt2V.toFixed(1):'—')+' km/h':'—'}</td>
+                  <td class="py-2 px-3 num text-slate-300">${a.tte?.sec?fmtMS(a.tte.sec):'—'}</td>
+                  <td class="py-2 px-3 text-right space-x-1">
+                    <button type="button" data-asmt-load="${escHtml(ath.id)}|${escHtml(a.id)}" class="px-2.5 py-1 rounded-lg border border-lime/50 text-lime hover:bg-lime/10 font-bold">📂 Abrir</button>
+                    <button type="button" data-asmt-del="${escHtml(ath.id)}|${escHtml(a.id)}" class="px-2 py-1 rounded-lg border border-rose-500/40 text-rose-300 hover:bg-rose-500/10" title="Excluir avaliação">✕</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`:''}
+      </div>`;
+    }).join('');
+  }
+
+  function exportBackupJson(){
+    const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),projectId:PROJECT_ID,athletes:athletesCache},null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`runlab-atletas-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  }
+
+  async function importBackupJson(file){
+    if(!file)return;
+    try{
+      const text=await file.text();
+      const parsed=JSON.parse(text);
+      const list=Array.isArray(parsed)?parsed:(Array.isArray(parsed.athletes)?parsed.athletes:[]);
+      if(!list.length){alert('Arquivo JSON não contém atletas válidos.');return;}
+      if(!db&&!(await init()))return;
+      for(const ath of list){
+        if(!ath||!ath.id||!ath.name)continue;
+        await db.collection(COLLECTION).doc(ath.id).set(ath);
+      }
+      await listAthletes();
+      alert(`${list.length} atleta(s) importado(s) e sincronizado(s) com o Firebase Firestore!`);
+    }catch(err){
+      alert('Erro ao importar JSON: '+err.message);
+    }
+  }
+
+  return{
+    init,listAthletes,saveCurrentAssessment,startNewAssessmentForAthlete,
+    loadAssessment,deleteAssessment,deleteAthlete,renderUI:()=>renderList(),
+    renderCompare,getComparingAthleteId:()=>comparingAthleteId,exportBackupJson,importBackupJson
+  };
+})();
+
+document.getElementById('btnSaveCloud')?.addEventListener('click',()=>AthleteCloudDB.saveCurrentAssessment());
+document.getElementById('btnSaveCurrentToCloud')?.addEventListener('click',()=>AthleteCloudDB.saveCurrentAssessment());
+document.getElementById('btnRefreshCloud')?.addEventListener('click',()=>AthleteCloudDB.listAthletes());
+document.getElementById('btnExportCloud')?.addEventListener('click',()=>AthleteCloudDB.exportBackupJson());
+document.getElementById('inpImportCloud')?.addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(f)AthleteCloudDB.importBackupJson(f);
+  e.target.value='';
+});
+document.getElementById('athSearchInput')?.addEventListener('input',()=>AthleteCloudDB.renderUI());
+document.getElementById('btnCloseCompare')?.addEventListener('click',()=>{
+  document.getElementById('athComparePanel')?.classList.add('hidden');
+});
+document.getElementById('cmpBaseSelect')?.addEventListener('change',e=>{
+  const currId=document.getElementById('cmpCurrSelect')?.value;
+  const athId=AthleteCloudDB.getComparingAthleteId();
+  if(athId&&currId)AthleteCloudDB.renderCompare(athId,e.target.value,currId);
+});
+document.getElementById('cmpCurrSelect')?.addEventListener('change',e=>{
+  const baseId=document.getElementById('cmpBaseSelect')?.value;
+  const athId=AthleteCloudDB.getComparingAthleteId();
+  if(athId&&baseId)AthleteCloudDB.renderCompare(athId,baseId,e.target.value);
+});
+document.getElementById('athListContainer')?.addEventListener('click',e=>{
+  const btnNew=e.target.closest('[data-ath-new]');
+  if(btnNew){AthleteCloudDB.startNewAssessmentForAthlete(btnNew.dataset.athNew);return;}
+  const btnCmp=e.target.closest('[data-ath-cmp]');
+  if(btnCmp){state.currentAthleteId=btnCmp.dataset.athCmp;AthleteCloudDB.renderCompare(btnCmp.dataset.athCmp);return;}
+  const btnDelAth=e.target.closest('[data-ath-del]');
+  if(btnDelAth){AthleteCloudDB.deleteAthlete(btnDelAth.dataset.athDel);return;}
+  const btnLoad=e.target.closest('[data-asmt-load]');
+  if(btnLoad){const[aId,sId]=btnLoad.dataset.asmtLoad.split('|');AthleteCloudDB.loadAssessment(aId,sId);return;}
+  const btnDelAsmt=e.target.closest('[data-asmt-del]');
+  if(btnDelAsmt){const[aId,sId]=btnDelAsmt.dataset.asmtDel.split('|');AthleteCloudDB.deleteAssessment(aId,sId);return;}
+});
+AthleteCloudDB.init();
 </script>
 </body>
 </html>

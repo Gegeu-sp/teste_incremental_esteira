@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const {
   vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
   classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
-  evaluateHrSample, computeStableStageHr, assessBtSignalQuality
+  evaluateHrSample, computeStableStageHr, assessBtSignalQuality,
+  computeVPeak, compareAssessments
 } = require('../assets/calc.js');
 
 test('vo2At reproduz a tabela do protocolo (velocidade → VO2)', () => {
@@ -294,4 +295,99 @@ test('assessBtSignalQuality: diagnostica conexões, aparelhos incompatíveis, re
   assert.equal(stable.quality, 'stable');
   assert.equal(stable.reliable, true);
   assert.equal(stable.stageBpm, 155);
+});
+
+/* ================= FEATURE 008: REGRA DE VPICO (ESTÁGIO ANTERIOR COMPLETO) & COMPARAÇÃO ================= */
+
+test('computeVPeak: quando interrompido no estágio atual incompleto, considera a velocidade do estágio anterior concluído', () => {
+  // Concluiu estágios de 8.0 km/h e 9.0 km/h; interrompeu durante o estágio de 10.0 km/h
+  const completed = [
+    { v: 8, hr: 142, rpe: 4, tt: 0 },
+    { v: 9, hr: 158, rpe: 6, tt: 1 }
+  ];
+  const r = computeVPeak(8, completed);
+  assert.equal(r.vPeak, 9);
+  assert.equal(r.completedStagesCount, 2);
+  assert.equal(r.usedPreviousStage, true);
+  assert.equal(r.fallbackToStart, false);
+
+  // Concluiu apenas o 1º estágio (8.0 km/h) e parou no meio do 2º (9.0 km/h) -> vPeak = 8.0 km/h
+  const r1 = computeVPeak(8, [{ v: 8, hr: 138, rpe: 3, tt: 0 }]);
+  assert.equal(r1.vPeak, 8);
+  assert.equal(r1.completedStagesCount, 1);
+  assert.equal(r1.usedPreviousStage, true);
+});
+
+test('computeVPeak: fallback seguro para velocidade inicial caso interrompa antes de concluir o 1º estágio', () => {
+  const r0 = computeVPeak(7.5, []);
+  assert.equal(r0.vPeak, 7.5);
+  assert.equal(r0.completedStagesCount, 0);
+  assert.equal(r0.usedPreviousStage, false);
+  assert.equal(r0.fallbackToStart, true);
+});
+
+test('compareAssessments: calcula deltas de evolução e pareia FC/RPE por velocidade (km/h)', () => {
+  const base = {
+    id: 'a1',
+    dateFormatted: '10/08/2026',
+    profileSnapshot: { weight: 80, age: 34 },
+    screen: { fc: 68 },
+    test: {
+      vPeak: 10,
+      vo2max: 35,
+      mets: 10,
+      vt1V: 8,
+      vt2V: 9,
+      fcVT1: 150,
+      fcVT2: 168,
+      stages: [
+        { v: 8, hr: 150, rpe: 4 },
+        { v: 9, hr: 168, rpe: 6 },
+        { v: 10, hr: 182, rpe: 8 }
+      ]
+    },
+    tte: { sec: 260 }
+  };
+  const curr = {
+    id: 'a2',
+    dateFormatted: '01/11/2026',
+    profileSnapshot: { weight: 77.5, age: 34 },
+    screen: { fc: 62 },
+    test: {
+      vPeak: 11,
+      vo2max: 38.5,
+      mets: 11,
+      vt1V: 9,
+      vt2V: 10,
+      fcVT1: 152,
+      fcVT2: 170,
+      stages: [
+        { v: 8, hr: 141, rpe: 3 },
+        { v: 9, hr: 156, rpe: 5 },
+        { v: 10, hr: 170, rpe: 7 },
+        { v: 11, hr: 184, rpe: 9 }
+      ]
+    },
+    tte: { sec: 340 }
+  };
+
+  const cmp = compareAssessments(base, curr);
+  assert.equal(cmp.metrics.vPeak.delta, 1);
+  assert.equal(cmp.metrics.vPeak.pct, 10);
+  assert.equal(cmp.metrics.vo2max.delta, 3.5);
+  assert.equal(cmp.metrics.weight.delta, -2.5);
+  assert.equal(cmp.metrics.restHr.delta, -6);
+  assert.equal(cmp.metrics.tteSec.delta, 80);
+
+  assert.equal(cmp.stageComparison.length, 4);
+  const st9 = cmp.stageComparison.find(s => s.v === 9);
+  assert.equal(st9.baseHr, 168);
+  assert.equal(st9.currHr, 156);
+  assert.equal(st9.deltaHr, -12); // -12 bpm na mesma velocidade de 9 km/h!
+  assert.equal(st9.deltaRpe, -1);
+
+  const st11 = cmp.stageComparison.find(s => s.v === 11);
+  assert.equal(st11.baseHr, null);
+  assert.equal(st11.currHr, 184);
+  assert.equal(st11.deltaHr, null);
 });
