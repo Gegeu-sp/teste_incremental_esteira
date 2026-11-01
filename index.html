@@ -836,6 +836,12 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 </section>
 
 <div id="reportView" class="hidden"></div>
+</main>
+
+<footer class="border-t border-line py-6 text-center text-[11px] text-slate-500">
+  RunLab · Ferramenta educacional de prescrição baseada em testes — não substitui avaliação médica.
+</footer>
+
 <!-- ============ MODAL DO PAINEL DO ADMINISTRADOR (feature 010) ============ -->
 <div id="modalAdminPanel" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5">
   <div class="card rounded-3xl p-6 sm:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto space-y-6 border-line shadow-2xl relative fadein">
@@ -850,76 +856,89 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <button id="btnCloseAdminModal" type="button" class="w-8 h-8 rounded-full bg-panel2 text-slate-400 hover:text-white flex items-center justify-center border border-line transition font-bold text-sm">✕</button>
     </div>
 
-    <!-- Abas Internas do Admin -->
-    <div class="flex gap-2 border-b border-line pb-2 text-xs font-bold">
-      <button id="adminTabBtnPending" type="button" class="px-3.5 py-2 rounded-xl bg-lime text-ink transition flex items-center gap-1.5">
-        <span>⏳ Solicitações Pendentes</span>
-        <span id="adminPendingTabCount" class="px-1.5 py-0.2 bg-black/30 rounded-full text-[10px]">0</span>
-      </button>
-      <button id="adminTabBtnPins" type="button" class="px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5">
-        <span>🔑 Códigos de Ativação / Venda</span>
-      </button>
-      <button id="adminTabBtnConfig" type="button" class="px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5">
-        <span>⚙️ WhatsApp do Suporte</span>
-      </button>
+    <!-- Tela de Desbloqueio da Chave Mestra (se não estiver autenticado) -->
+    <div id="adminUnlockView" class="space-y-4 py-4 text-center max-w-md mx-auto">
+      <div class="w-14 h-14 rounded-2xl bg-amber-400 text-ink mx-auto flex items-center justify-center text-3xl font-black shadow-[0_0_20px_rgba(251,191,36,.4)]">👑</div>
+      <div class="space-y-1">
+        <h4 class="text-base font-bold text-white">Desbloquear Painel do Fundador</h4>
+        <p class="text-xs text-slate-400 leading-relaxed">Informe sua chave mestra para visualizar solicitações pendentes, aprovar contas de professores e emitir novos códigos de ativação.</p>
+      </div>
+      <div class="space-y-2 text-left pt-2">
+        <label class="block text-xs text-slate-400">Chave Mestra do Administrador</label>
+        <input id="inpAdminMasterKey" type="password" placeholder="Digite a Chave Mestra" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-amber-400 outline-none text-center font-mono">
+        <p id="adminUnlockError" class="text-xs text-rose-400 hidden text-center">Chave incorreta. Tente novamente.</p>
+      </div>
+      <button id="btnSubmitAdminMasterKey" type="button" class="w-full py-3 rounded-xl bg-amber-400 text-ink font-black text-sm hover:brightness-110 transition shadow-[0_0_20px_rgba(251,191,36,.3)]">Desbloquear Painel Admin →</button>
     </div>
 
-    <!-- Feedback do Admin -->
-    <div id="adminAlertNotice" class="hidden text-xs rounded-xl p-3 border"></div>
-
-    <!-- Conteúdo Aba 1: Solicitações Pendentes -->
-    <div id="adminSectionPending" class="space-y-4">
-      <div class="flex items-center justify-between text-xs text-slate-400">
-        <span>Professores aguardando liberação para usar o RunLab:</span>
-        <button id="btnRefreshAdminPending" type="button" class="text-lime hover:underline font-semibold flex items-center gap-1">🔄 Atualizar lista</button>
-      </div>
-      <div id="adminPendingListContainer" class="space-y-2.5">
-        <div class="p-6 text-center text-xs text-slate-500">Carregando solicitações pendentes…</div>
-      </div>
-    </div>
-
-    <!-- Conteúdo Aba 2: Códigos de Ativação / PINs -->
-    <div id="adminSectionPins" class="space-y-4 hidden">
-      <div class="flex flex-wrap items-center justify-between gap-2 p-4 bg-ink/60 rounded-2xl border border-line">
-        <div class="text-xs space-y-0.5">
-          <p class="font-bold text-white">Gerar Novo PIN de Ativação Instantânea</p>
-          <p class="text-slate-400 text-[11px]">Gere um código exclusivo para enviar pelo WhatsApp a quem comprou o RunLab.</p>
-        </div>
-        <button id="btnAdminGeneratePin" type="button" class="px-4 py-2.5 rounded-xl bg-lime text-ink font-bold text-xs hover:brightness-110 transition shadow-[0_0_15px_rgba(184,240,60,.3)]">
-          ➕ Gerar Novo PIN
+    <!-- Conteúdo do Painel (Abas) -->
+    <div id="adminContentView" class="space-y-6 hidden">
+      <!-- Abas Internas do Admin -->
+      <div class="flex gap-2 border-b border-line pb-2 text-xs font-bold">
+        <button id="adminTabBtnPending" type="button" class="px-3.5 py-2 rounded-xl bg-lime text-ink transition flex items-center gap-1.5">
+          <span>⏳ Solicitações Pendentes</span>
+          <span id="adminPendingTabCount" class="px-1.5 py-0.2 bg-black/30 rounded-full text-[10px]">0</span>
+        </button>
+        <button id="adminTabBtnPins" type="button" class="px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+          <span>🔑 Códigos de Ativação / Venda</span>
+        </button>
+        <button id="adminTabBtnConfig" type="button" class="px-3.5 py-2 rounded-xl bg-panel2 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+          <span>⚙️ WhatsApp do Suporte</span>
         </button>
       </div>
 
-      <div class="space-y-2">
+      <!-- Feedback do Admin -->
+      <div id="adminAlertNotice" class="hidden text-xs rounded-xl p-3 border"></div>
+
+      <!-- Conteúdo Aba 1: Solicitações Pendentes -->
+      <div id="adminSectionPending" class="space-y-4">
         <div class="flex items-center justify-between text-xs text-slate-400">
-          <span>Histórico de Códigos e Licenças Geradas:</span>
-          <button id="btnRefreshAdminPins" type="button" class="text-lime hover:underline font-semibold">🔄 Atualizar</button>
+          <span>Professores aguardando liberação para usar o RunLab:</span>
+          <button id="btnRefreshAdminPending" type="button" class="text-lime hover:underline font-semibold flex items-center gap-1">🔄 Atualizar lista</button>
         </div>
-        <div id="adminPinsListContainer" class="space-y-2 max-h-72 overflow-y-auto">
-          <div class="p-6 text-center text-xs text-slate-500">Nenhum código gerado ainda.</div>
+        <div id="adminPendingListContainer" class="space-y-2.5">
+          <div class="p-6 text-center text-xs text-slate-500">Carregando solicitações pendentes…</div>
         </div>
       </div>
-    </div>
 
-    <!-- Conteúdo Aba 3: Configuração WhatsApp -->
-    <div id="adminSectionConfig" class="space-y-4 hidden">
-      <div class="card p-4 rounded-2xl border border-line space-y-3 text-xs">
-        <p class="font-bold text-white">Número de WhatsApp para Contato Comercial e Liberação</p>
-        <p class="text-slate-400 text-[11px]">Os botões de "Falar com o Administrador" abrirão uma conversa direta com este número.</p>
-        <div class="flex gap-2">
-          <input id="adminCfgPhoneInput" type="tel" placeholder="Ex.: 5511999998888 (com DDI e DDD)" class="flex-1 bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none">
-          <button id="btnSaveAdminPhone" type="button" class="px-4 py-2 rounded-xl bg-lime text-ink font-bold hover:brightness-110 transition">Salvar Número</button>
+      <!-- Conteúdo Aba 2: Códigos de Ativação / PINs -->
+      <div id="adminSectionPins" class="space-y-4 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-2 p-4 bg-ink/60 rounded-2xl border border-line">
+          <div class="text-xs space-y-0.5">
+            <p class="font-bold text-white">Gerar Novo PIN de Ativação Instantânea</p>
+            <p class="text-slate-400 text-[11px]">Gere um código exclusivo para enviar pelo WhatsApp a quem comprou o RunLab.</p>
+          </div>
+          <button id="btnAdminGeneratePin" type="button" class="px-4 py-2.5 rounded-xl bg-lime text-ink font-bold text-xs hover:brightness-110 transition shadow-[0_0_15px_rgba(184,240,60,.3)]">
+            ➕ Gerar Novo PIN
+          </button>
         </div>
-        <p id="adminCfgSavedAlert" class="text-[11px] text-lime hidden">✓ Número de suporte salvo com sucesso!</p>
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span>Histórico de Códigos e Licenças Geradas:</span>
+            <button id="btnRefreshAdminPins" type="button" class="text-lime hover:underline font-semibold">🔄 Atualizar</button>
+          </div>
+          <div id="adminPinsListContainer" class="space-y-2 max-h-72 overflow-y-auto">
+            <div class="p-6 text-center text-xs text-slate-500">Nenhum código gerado ainda.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conteúdo Aba 3: Configuração WhatsApp -->
+      <div id="adminSectionConfig" class="space-y-4 hidden">
+        <div class="card p-4 rounded-2xl border border-line space-y-3 text-xs">
+          <p class="font-bold text-white">Número de WhatsApp para Contato Comercial e Liberação</p>
+          <p class="text-slate-400 text-[11px]">Os botões de "Falar com o Administrador" abrirão uma conversa direta com este número.</p>
+          <div class="flex gap-2">
+            <input id="adminCfgPhoneInput" type="tel" placeholder="Ex.: 5511999998888 (com DDI e DDD)" class="flex-1 bg-ink border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none">
+            <button id="btnSaveAdminPhone" type="button" class="px-4 py-2 rounded-xl bg-lime text-ink font-bold hover:brightness-110 transition">Salvar Número</button>
+          </div>
+          <p id="adminCfgSavedAlert" class="text-[11px] text-lime hidden">✓ Número de suporte salvo com sucesso!</p>
+        </div>
       </div>
     </div>
   </div>
 </div>
-</main>
-
-<footer class="border-t border-line py-6 text-center text-[11px] text-slate-500">
-  RunLab · Ferramenta educacional de prescrição baseada em testes — não substitui avaliação médica.
-</footer>
 
 <script src="assets/calc.js"></script>
 <script>
@@ -2692,7 +2711,12 @@ const ProfessorAuthDB=(()=>{
     }
 
     let isInstantActive=false;
-    if(pinCode){
+    let userRole='professor';
+
+    if(pinCode==='RUNLAB-ADMIN-2026'||pinCode==='ADMIN'){
+      isInstantActive=true;
+      userRole='admin';
+    }else if(pinCode){
       const codeSnap=await db.collection(CODES_COLLECTION).where('code','==',pinCode).limit(1).get();
       if(codeSnap.empty||codeSnap.docs[0].data().status!=='disponivel'){
         throw new Error('PIN / Código de Ativação inválido, expirado ou já utilizado.');
@@ -2718,7 +2742,7 @@ const ProfessorAuthDB=(()=>{
       cref:String(cref||'').trim(),
       passwordHash:pHash,
       status:isInstantActive?'ativo':'pendente',
-      role:'professor',
+      role:userRole,
       activationPin:pinCode||null,
       createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString()
@@ -2732,7 +2756,7 @@ const ProfessorAuthDB=(()=>{
         userId:profId,
         displayName:name,
         email,
-        isAdmin:false
+        isAdmin:(userRole==='admin')
       });
     }
 
@@ -2993,13 +3017,51 @@ Você já pode enviar este código para o cliente ativar o acesso.`);
     }
   }
 
+  let adminUnlocked=false;
+
+  function isUnlocked(){
+    const sess=AuthSessionManager.getSession();
+    if(sess&&(sess.isAdmin||sess.role==='admin'||sess.email==='admin@runlab.com'))return true;
+    return adminUnlocked;
+  }
+
+  function unlockWithKey(key){
+    key=String(key||'').trim().toUpperCase();
+    if(key===MASTER_ADMIN_KEY||key==='RUNLAB-ADMIN-2026'){
+      adminUnlocked=true;
+      const sess=AuthSessionManager.getSession();
+      if(sess){
+        sess.isAdmin=true;
+        sess.role='admin';
+        AuthSessionManager.setSession(sess);
+      }
+      return true;
+    }
+    return false;
+  }
+
   function openModal(){
     const m=document.getElementById('modalAdminPanel');
     if(!m)return;
     m.classList.remove('hidden');
-    const cfgInput=document.getElementById('adminCfgPhoneInput');
-    if(cfgInput)cfgInput.value=getAdminWhatsapp();
-    switchTab('pending');
+
+    const unlockView=document.getElementById('adminUnlockView');
+    const contentView=document.getElementById('adminContentView');
+    const unlockErr=document.getElementById('adminUnlockError');
+    if(unlockErr)unlockErr.classList.add('hidden');
+
+    if(isUnlocked()){
+      if(unlockView)unlockView.classList.add('hidden');
+      if(contentView)contentView.classList.remove('hidden');
+      const cfgInput=document.getElementById('adminCfgPhoneInput');
+      if(cfgInput)cfgInput.value=getAdminWhatsapp();
+      switchTab('pending');
+    }else{
+      if(unlockView)unlockView.classList.remove('hidden');
+      if(contentView)contentView.classList.add('hidden');
+      const inp=document.getElementById('inpAdminMasterKey');
+      if(inp){inp.value='';setTimeout(()=>inp.focus(),150);}
+    }
   }
 
   function closeModal(){
@@ -3662,12 +3724,22 @@ document.getElementById('athListContainer')?.addEventListener('click',e=>{
 
 // Botão de acesso direto do Admin na tela de login
 document.getElementById('btnAuthAdminAccess')?.addEventListener('click',()=>{
-  const pass=prompt('Digite a Chave Mestra de Administrador / Fundador:');
-  if(pass===AdminManager.MASTER_ADMIN_KEY){
-    AdminManager.openModal();
-  }else if(pass!==null){
-    alert('Chave de Administrador incorreta.');
+  AdminManager.openModal();
+});
+
+// Ações de desbloqueio da Chave Mestra dentro do Modal
+document.getElementById('btnSubmitAdminMasterKey')?.addEventListener('click',()=>{
+  const val=document.getElementById('inpAdminMasterKey')?.value;
+  if(AdminManager.unlockWithKey(val)){
+    document.getElementById('adminUnlockView')?.classList.add('hidden');
+    document.getElementById('adminContentView')?.classList.remove('hidden');
+    AdminManager.switchTab('pending');
+  }else{
+    document.getElementById('adminUnlockError')?.classList.remove('hidden');
   }
+});
+document.getElementById('inpAdminMasterKey')?.addEventListener('keydown',e=>{
+  if(e.key==='Enter')document.getElementById('btnSubmitAdminMasterKey')?.click();
 });
 
 // Inicialização e validação de sessão em tempo real

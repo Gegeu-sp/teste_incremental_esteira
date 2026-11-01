@@ -641,21 +641,20 @@ function generateWorkoutPrescriptions(assessment) {
  * @returns {{ valid: boolean, sanitized: string, formatted: string, error?: string }}
  */
 function validatePhone(phoneStr) {
-  const digits = String(phoneStr || '').replace(/\D/g, '');
+  let digits = String(phoneStr || '').replace(/\D/g, '');
   if (!digits) {
     return { valid: false, sanitized: '', formatted: '', error: 'Telefone ou WhatsApp é obrigatório' };
   }
-  if (digits.length < 10 || digits.length > 11) {
-    return { valid: false, sanitized: digits, formatted: digits, error: 'Telefone deve conter DDD + 8 ou 9 dígitos' };
+  if (digits.startsWith('55') && digits.length >= 12) {
+    digits = digits.slice(2);
   }
-  const ddd = parseInt(digits.slice(0, 2), 10);
-  if (ddd < 11 || ddd > 99) {
-    return { valid: false, sanitized: digits, formatted: digits, error: 'DDD inválido' };
+  if (digits.length < 8) {
+    return { valid: false, sanitized: digits, formatted: digits, error: 'Telefone deve conter no mínimo 8 dígitos' };
   }
   let formatted = digits;
   if (digits.length === 11) {
     formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  } else {
+  } else if (digits.length === 10) {
     formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   }
   return { valid: true, sanitized: digits, formatted };

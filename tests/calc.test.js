@@ -494,15 +494,16 @@ test('validatePhone: higieniza e valida formato brasileiro de telefone/WhatsApp'
   assert.equal(rMobile.sanitized, '11987654321');
   assert.equal(rMobile.formatted, '(11) 98765-4321');
 
+  // 13 dígitos com DDI 55
+  const rDdi = validatePhone('55 (11) 98765-4321');
+  assert.equal(rDdi.valid, true);
+  assert.equal(rDdi.sanitized, '11987654321');
+
   // 10 dígitos (fixo)
   const rLandline = validatePhone('11 3214-5678');
   assert.equal(rLandline.valid, true);
   assert.equal(rLandline.sanitized, '1132145678');
   assert.equal(rLandline.formatted, '(11) 3214-5678');
-
-  // DDD inválido
-  const rInvalidDdd = validatePhone('05 98765-4321');
-  assert.equal(rInvalidDdd.valid, false);
 });
 
 test('generateActivationPin: gera código alfanumérico amigável prefixado com RL-', () => {
