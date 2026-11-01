@@ -48,7 +48,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 
 <header class="no-print sticky top-0 z-40 backdrop-blur-md bg-ink/85 border-b border-line">
   <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-2.5 cursor-pointer" id="brandLogoHome">
       <div class="w-9 h-9 rounded-xl bg-lime grid place-items-center shadow-[0_0_24px_rgba(184,240,60,.35)]">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-6 3 3 4-7 4 5 3-3" stroke="#0B0F14" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -57,8 +57,10 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         <p class="text-[10px] text-slate-400 leading-none mt-1">Triagem • Testes • Zonas • Prescrição</p>
       </div>
     </div>
+
+    <!-- Navegação do Professor -->
     <nav class="flex flex-wrap items-center gap-1.5 ml-auto" id="tabbar">
-      <button data-tab="perfil" class="tab-btn active px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">1 · Perfil</button>
+      <button data-tab="perfil" class="tab-btn active px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">1 · Aluno & Perfil</button>
       <button data-tab="triagem" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">2 · Triagem & Repouso</button>
       <button data-tab="teste" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">3 · Teste Incremental</button>
       <button data-tab="tolerancia" class="tab-btn px-3 py-2 rounded-lg text-xs border border-line bg-panel hover:border-lime/60 transition">4 · Tolerância</button>
@@ -67,28 +69,252 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
       <button data-tab="atletas" class="tab-btn px-3 py-2 rounded-lg text-xs border border-sky-400/40 bg-panel hover:border-sky-400 text-sky-200 transition">7 · Atletas & Evolução</button>
       <button id="btnSaveCloud" type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-lime/15 text-lime border border-lime/40 hover:bg-lime/25 transition" title="Salvar perfil e avaliação atual no banco de dados em nuvem (Firebase Firestore)">☁ Salvar na Nuvem</button>
     </nav>
+
+    <!-- Sessão e Usuário Ativo -->
+    <div class="flex items-center gap-2" id="headerAuthControls">
+      <span id="headerUserBadge" class="chip bg-panel2 text-slate-300 border border-line text-[11px] hidden"></span>
+      <button id="btnViewAsStudent" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold border border-sky-400/50 text-sky-300 hover:bg-sky-400/10 transition" title="Visualizar treinos na visão do aluno">👀 Ver como Aluno</button>
+      <button id="btnLogout" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 transition" title="Encerrar sessão">🚪 Sair</button>
+    </div>
   </div>
 </header>
 
-<main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+<!-- ============ TELA DE BOAS-VINDAS & AUTENTICAÇÃO (feature 009) ============ -->
+<section id="view-auth" class="min-h-[82vh] flex items-center justify-center px-4 py-8">
+  <div class="card rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border-line space-y-6 fadein">
+    <!-- Header da Auth -->
+    <div class="text-center space-y-2">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-lime text-ink shadow-[0_0_30px_rgba(184,240,60,.4)] mx-auto mb-1">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M3 17l4-6 3 3 4-7 4 5 3-3" stroke="#0B0F14" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 class="text-2xl font-black tracking-tight text-white">Run<span class="text-lime">Lab</span></h2>
+      <p class="text-xs text-slate-400">Plataforma Profissional de Teste Incremental, Zonas & Prescrição</p>
+    </div>
 
-<!-- ============ 1. PERFIL ============ -->
+    <!-- Toggle de Perfil (Professor vs Aluno) -->
+    <div class="grid grid-cols-2 p-1 bg-ink rounded-2xl border border-line text-xs font-bold">
+      <button id="authBtnRoleProf" type="button" class="py-2.5 rounded-xl bg-lime text-ink transition">Sou Professor</button>
+      <button id="authBtnRoleStud" type="button" class="py-2.5 rounded-xl text-slate-400 hover:text-white transition">Sou Aluno</button>
+    </div>
+
+    <!-- Feedback / Alertas de Auth -->
+    <div id="authAlert" class="hidden text-xs rounded-xl p-3 border"></div>
+
+    <!-- Formulário Professor -->
+    <div id="authProfPanel" class="space-y-4">
+      <div class="flex items-center justify-between text-xs border-b border-line pb-2">
+        <span class="text-slate-400">Área do Treinador / Avaliador</span>
+        <button id="btnToggleProfMode" type="button" class="text-lime hover:underline font-semibold">Criar nova conta de professor</button>
+      </div>
+
+      <!-- Sub-modo Login Professor -->
+      <form id="formProfLogin" class="space-y-3.5">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">E-mail ou Usuário</label>
+          <input id="profLoginEmail" type="text" placeholder="professor@exemplo.com" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Senha</label>
+          <input id="profLoginPass" type="password" placeholder="••••••••" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-lime text-ink font-extrabold text-sm hover:brightness-110 transition shadow-[0_0_20px_rgba(184,240,60,.2)]">Entrar como Professor →</button>
+      </form>
+
+      <!-- Sub-modo Cadastro Professor (inicialmente hidden) -->
+      <form id="formProfRegister" class="space-y-3.5 hidden">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Nome Completo do Profissional</label>
+          <input id="profRegName" type="text" placeholder="Prof. Carlos Eduardo" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">E-mail</label>
+          <input id="profRegEmail" type="email" placeholder="carlos@academia.com" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">CREF / Registro Profissional (opcional)</label>
+          <input id="profRegCref" type="text" placeholder="Ex.: 012345-G/SP" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Senha</label>
+          <input id="profRegPass" type="password" placeholder="Mínimo 4 caracteres" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Confirmar Senha</label>
+          <input id="profRegPass2" type="password" placeholder="Repita a senha" class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-lime text-ink font-extrabold text-sm hover:brightness-110 transition">Cadastrar e Acessar Painel →</button>
+      </form>
+    </div>
+
+    <!-- Formulário Aluno -->
+    <div id="authStudPanel" class="space-y-4 hidden">
+      <div class="text-xs text-slate-400 border-b border-line pb-2">
+        <span>Portal do Aluno · Acesso rápido aos treinos prescritos</span>
+      </div>
+      <form id="formStudLogin" class="space-y-3.5">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Seu Nome ou Código de Acesso</label>
+          <input id="studLoginCode" type="text" placeholder="Ex.: Juliana Costa ou JULIANA-742" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+          <p class="text-[10px] text-slate-500 mt-1">Digite seu nome cadastrado ou o código fornecido pelo professor.</p>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">PIN / Senha de Acesso</label>
+          <input id="studLoginPin" type="password" placeholder="Ex.: 1234" required class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none num text-center tracking-widest text-base">
+        </div>
+        <button type="submit" class="w-full py-3 rounded-xl bg-lime text-ink font-extrabold text-sm hover:brightness-110 transition shadow-[0_0_20px_rgba(184,240,60,.2)]">Acessar Meus Treinos na Esteira 🏃‍♂️</button>
+      </form>
+      <div class="rounded-xl border border-sky-400/20 bg-sky-400/5 p-3 text-[11px] text-sky-300">
+        💡 <b>Dica</b>: Seu Código e PIN são gerados na sua ficha pelo seu professor avaliador no momento do cadastro.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PORTAL DO ALUNO / TREINOS NA ESTEIRA (feature 009) ============ -->
+<section id="view-portal-aluno" class="hidden max-w-5xl mx-auto px-4 py-8 space-y-8 fadein">
+  <!-- Top Banner do Aluno -->
+  <div class="card rounded-3xl p-6 bg-gradient-to-r from-panel via-panel2 to-panel border-line flex flex-wrap items-center justify-between gap-4">
+    <div class="space-y-1">
+      <div class="flex items-center gap-2">
+        <span class="chip bg-lime/15 text-lime border border-lime/40">🏃‍♀️ Portal do Aluno</span>
+        <span id="studPreviewBadge" class="chip bg-amber-400/15 text-amber-300 border border-amber-400/40 hidden">Modo Pré-visualização do Professor</span>
+      </div>
+      <h2 id="studGreeting" class="text-2xl sm:text-3xl font-black tracking-tight text-white">Olá, Atleta!</h2>
+      <p id="studEvaluationMeta" class="text-xs text-slate-400">Consulte suas zonas e parâmetros exatos para treinar na esteira da academia.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button id="btnStudBackToProf" type="button" class="hidden px-4 py-2 rounded-xl border border-lime/50 text-lime text-xs font-bold hover:bg-lime/10 transition">← Voltar ao Painel do Professor</button>
+      <button id="btnStudLogout" type="button" class="px-4 py-2 rounded-xl border border-rose-500/40 text-rose-300 text-xs font-bold hover:bg-rose-500/10 transition">🚪 Sair</button>
+    </div>
+  </div>
+
+  <!-- Resumo da Avaliação / Cards Principais -->
+  <div id="studSummaryContainer" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card rounded-2xl p-5 border-lime/40 bg-lime/5 space-y-1">
+      <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Velocidade de Pico (vPico)</span>
+      <div class="flex items-baseline gap-2">
+        <span id="studVPeak" class="text-3xl font-black text-lime num">—</span>
+        <span class="text-xs text-slate-400">km/h</span>
+      </div>
+      <p id="studVPeakPace" class="text-xs text-slate-300 num">Pace de pico: —</p>
+    </div>
+    <div class="card rounded-2xl p-5 space-y-1">
+      <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">VO₂ Máximo Estimado</span>
+      <div class="flex items-baseline gap-2">
+        <span id="studVo2" class="text-3xl font-black text-white num">—</span>
+        <span class="text-xs text-slate-400">ml/kg·min</span>
+      </div>
+      <p id="studVo2Class" class="text-xs text-slate-400">—</p>
+    </div>
+    <div class="card rounded-2xl p-5 space-y-1">
+      <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Limiar Aeróbio (VT1)</span>
+      <div class="flex items-baseline gap-2">
+        <span id="studVt1" class="text-2xl font-black text-sky-300 num">—</span>
+        <span class="text-xs text-slate-400">km/h</span>
+      </div>
+      <p id="studVt1Hr" class="text-xs text-slate-400 num">FC: — bpm</p>
+    </div>
+    <div class="card rounded-2xl p-5 space-y-1">
+      <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Ponto de Compensação (VT2)</span>
+      <div class="flex items-baseline gap-2">
+        <span id="studVt2" class="text-2xl font-black text-amber-300 num">—</span>
+        <span class="text-xs text-slate-400">km/h</span>
+      </div>
+      <p id="studVt2Hr" class="text-xs text-slate-400 num">FC: — bpm</p>
+    </div>
+  </div>
+
+  <!-- Tabela de Zonas de Treino (Z1 a Z5) -->
+  <div class="card rounded-2xl p-5 space-y-3">
+    <div class="flex items-center justify-between">
+      <h3 class="text-base font-bold text-white flex items-center gap-2">🎯 Suas 5 Zonas de Treinamento</h3>
+      <span class="text-xs text-slate-400">Baseado no protocolo de 2 min</span>
+    </div>
+    <div id="studZonesTable" class="overflow-x-auto"></div>
+  </div>
+
+  <!-- Seção Principal: Meus Treinos na Esteira -->
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
+          🏃‍♂️ Meus Treinos na Esteira
+          <span class="text-xs font-normal text-slate-400">(Números exatos para programar na esteira)</span>
+        </h3>
+        <p class="text-xs text-slate-400 mt-0.5">Selecione uma sessão abaixo e siga a velocidade prescrita.</p>
+      </div>
+      <!-- Filtros -->
+      <div id="studWorkoutFilters" class="flex flex-wrap gap-1.5 p-1 bg-ink rounded-xl border border-line text-xs font-medium">
+        <button data-wfilter="all" class="px-3 py-1.5 rounded-lg bg-lime text-ink font-bold transition">Todos (6)</button>
+        <button data-wfilter="continuo" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Rodagem / Base</button>
+        <button data-wfilter="tempo" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Limiar / Tempo</button>
+        <button data-wfilter="intervalado" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Intervalados (Tiros)</button>
+        <button data-wfilter="regenerativo" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Regenerativo</button>
+      </div>
+    </div>
+
+    <!-- Cards de Treino da Esteira -->
+    <div id="studWorkoutCards" class="grid md:grid-cols-2 gap-4"></div>
+  </div>
+</section>
+
+<!-- ============ AMBIENTE DO PROFESSOR (AVALIAÇÃO E GESTÃO) ============ -->
+<main id="view-professor" class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+<!-- ============ 1. PERFIL / CENTRAL PROFISSIONAL DE ALUNOS ============ -->
 <section id="tab-perfil" class="tab-panel space-y-6">
   <div class="fadein flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h2 class="text-2xl font-extrabold">Perfil do Aluno</h2>
-      <p class="text-sm text-slate-400 mt-1">Dados que alimentam triagem, zonas, prescrição e histórico em nuvem no Firebase Firestore.</p>
+      <h2 class="text-2xl font-extrabold">Central Profissional de Alunos</h2>
+      <p class="text-sm text-slate-400 mt-1">Pesquise atletas cadastrados no banco em nuvem ou cadastre um novo aluno antes de iniciar a triagem e o teste.</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <span id="activeAthleteChip" class="chip bg-sky-400/10 text-sky-300 border border-sky-400/30 hidden"></span>
-      <button type="button" data-goto="atletas" class="goto text-xs border border-sky-400/40 text-sky-300 rounded-xl px-3 py-2 hover:bg-sky-400/10 transition">📂 Buscar / Comparar Atletas →</button>
+      <button id="btnHubNewStudent" type="button" class="text-xs bg-lime text-ink font-bold rounded-xl px-3.5 py-2 hover:brightness-110 transition shadow-[0_0_15px_rgba(184,240,60,.2)]">+ Cadastrar Novo Aluno</button>
+      <button type="button" data-goto="atletas" class="goto text-xs border border-sky-400/40 text-sky-300 rounded-xl px-3 py-2 hover:bg-sky-400/10 transition">📂 Histórico Completo Firestore →</button>
     </div>
   </div>
+
+  <!-- Barra de Busca Rápida de Alunos -->
+  <div class="card rounded-2xl p-4 space-y-3 fadein border-sky-400/30 bg-sky-400/5">
+    <div class="flex items-center gap-3">
+      <span class="text-lg">🔍</span>
+      <input id="athHubSearchInput" type="text" placeholder="Buscar aluno por nome, e-mail ou código de acesso..." class="w-full bg-ink border border-line rounded-xl px-3.5 py-2.5 text-sm focus:border-lime outline-none">
+    </div>
+    <!-- Resultados Rápidos -->
+    <div id="athHubSearchResults" class="space-y-2 max-h-64 overflow-y-auto hidden"></div>
+  </div>
+
+  <!-- Ficha Cadastral do Aluno -->
   <div class="grid md:grid-cols-3 gap-4 fadein">
-    <div class="card rounded-2xl p-5 md:col-span-2">
+    <div class="card rounded-2xl p-5 md:col-span-2 space-y-5">
+      <div class="flex items-center justify-between border-b border-line pb-3">
+        <h3 id="formTitleStudent" class="text-sm font-bold text-white flex items-center gap-2">
+          <span>📋 Ficha Cadastral do Aluno</span>
+          <span id="formBadgeStudentMode" class="chip bg-lime/10 text-lime border border-lime/30 text-[10px]">Novo Cadastro</span>
+        </h3>
+        <button id="btnGenerateCodePin" type="button" class="text-xs text-sky-300 hover:underline" title="Gerar novo código e PIN para o aluno">⚡ Gerar Código/PIN</button>
+      </div>
+
+      <!-- Bloco 1: Acesso ao Portal -->
+      <div class="bg-ink/60 rounded-xl p-3.5 border border-line/80 space-y-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-lime block">Credenciais de Acesso do Aluno ao Portal</span>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="block text-xs text-slate-400">Código de Acesso do Aluno
+            <input id="pAccessCode" type="text" placeholder="Ex.: JULIANA-742" class="num mt-1 w-full bg-panel border border-line rounded-xl px-3 py-2 text-xs font-bold text-white focus:border-lime outline-none"></label>
+          <label class="block text-xs text-slate-400">PIN de Acesso (4–6 dígitos)
+            <input id="pPin" type="text" placeholder="1234" maxlength="6" class="num mt-1 w-full bg-panel border border-line rounded-xl px-3 py-2 text-xs font-bold text-lime text-center tracking-widest focus:border-lime outline-none"></label>
+          <label class="block text-xs text-slate-400">E-mail do Aluno (opcional)
+            <input id="pEmail" type="email" placeholder="aluno@email.com" class="mt-1 w-full bg-panel border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none"></label>
+          <label class="block text-xs text-slate-400">Telefone / WhatsApp (opcional)
+            <input id="pPhone" type="text" placeholder="(11) 98765-4321" class="mt-1 w-full bg-panel border border-line rounded-xl px-3 py-2 text-xs focus:border-lime outline-none"></label>
+        </div>
+      </div>
+
+      <!-- Bloco 2: Dados Antropométricos e Fisiológicos -->
       <div class="grid sm:grid-cols-2 gap-4">
-        <label class="block text-xs text-slate-400">Nome do aluno
-          <input id="pName" type="text" placeholder="Ex.: Ana Silva" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400 sm:col-span-2">Nome Completo do Aluno *
+          <input id="pName" type="text" placeholder="Ex.: Juliana Costa Silva" required class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Idade
           <input id="pAge" type="number" min="10" max="90" value="30" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Sexo
@@ -98,6 +324,8 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
           <input id="pWeight" type="number" step="0.1" min="30" max="250" placeholder="70.0" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Altura (cm)
           <input id="pHeight" type="number" min="100" max="230" placeholder="170" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
+        <label class="block text-xs text-slate-400">FC Repouso (bpm)
+          <input id="pRestHr" type="number" min="30" max="140" placeholder="60" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">FC máx conhecida (bpm · opcional)
           <input id="pHrMax" type="number" min="100" max="230" placeholder="Auto (208 - 0,7×idade)" class="num mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none"></label>
         <label class="block text-xs text-slate-400">Nível de treino
@@ -106,20 +334,32 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
         <label class="block text-xs text-slate-400">Objetivo principal
           <select id="pGoal" class="mt-1.5 w-full bg-ink border border-line rounded-xl px-3 py-2.5 text-sm focus:border-lime outline-none">
             <option value="cond">Condicionamento geral</option><option value="cardio">Cardio pós-musculação</option><option value="perf">Performance em corrida</option></select></label>
+        <label class="block text-xs text-slate-400 sm:col-span-2">Observações Clínicas / Histórico Esportivo
+          <textarea id="pClinicalNotes" rows="2" placeholder="Lesões anteriores, medicamentos contínuos, provas-alvo..." class="mt-1.5 w-full bg-ink border border-line rounded-xl p-3 text-xs focus:border-lime outline-none"></textarea></label>
+      </div>
+
+      <!-- Barra de Ações da Ficha -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-line">
+        <button id="btnSaveStudentHub" type="button" class="px-5 py-2.5 rounded-xl bg-lime text-ink font-bold text-xs hover:brightness-110 transition shadow-[0_0_15px_rgba(184,240,60,.2)]">💾 Salvar Aluno & Iniciar Avaliação</button>
+        <button id="btnGoTriagem" type="button" class="px-5 py-2.5 rounded-xl border border-line hover:border-lime/60 text-xs text-slate-200 transition">Avançar para 2 · Triagem →</button>
       </div>
     </div>
-    <div class="card rounded-2xl p-5">
-      <h3 class="text-sm font-bold text-lime">Fluxo de avaliação completo</h3>
-      <ol class="mt-3 space-y-2 text-xs text-slate-300 leading-relaxed">
-        <li><b class="text-white">1.</b> Perfil do aluno.</li>
-        <li><b class="text-white">2.</b> <b>Triagem</b>: PA e FC de repouso, limitações clínicas, sinais e sintomas → liberação e escolha do protocolo.</li>
-        <li><b class="text-white">3.</b> <b>Teste incremental</b> (2 min · +1 km/h · 1%) com Talk Test, RPE e sinais/sintomas → VO₂máx, vVO₂max (último estágio completo), VT1/RCP.</li>
-        <li><b class="text-white">4.</b> <b>Teste de tolerância</b> (tlim na vVO₂max).</li>
-        <li><b class="text-white">5.</b> <b>Zonas</b> individuais (FC, velocidade, pace, RPE).</li>
-        <li><b class="text-white">6.</b> <b>Plano semanal</b> conforme nº de sessões, objetivo e fase.</li>
-        <li><b class="text-white">7.</b> <b>Atletas & Evolução</b>: salvar na nuvem (Firestore) e comparar evoluções.</li>
+
+    <!-- Guia Rápido do Professor -->
+    <div class="card rounded-2xl p-5 space-y-4">
+      <h3 class="text-sm font-bold text-lime">Fluxo de Avaliação Profissional</h3>
+      <ol class="space-y-2 text-xs text-slate-300 leading-relaxed">
+        <li><b class="text-white">1. Central de Alunos:</b> Cadastre o aluno e entregue o Código/PIN para acesso ao Portal.</li>
+        <li><b class="text-white">2. Triagem Clínica:</b> PA, FC de repouso e liberação para esforço.</li>
+        <li><b class="text-white">3. Teste Incremental:</b> 2 min · +1 km/h até a exaustão com monitoramento cardíaco.</li>
+        <li><b class="text-white">4. Tolerância (tlim):</b> Teste no vVO₂máx (opcional).</li>
+        <li><b class="text-white">5. Zonas & Prescrição:</b> Geração automática de Z1 a Z5 e fichas de esteira.</li>
+        <li><b class="text-white">6. Portal do Aluno:</b> O aluno acessa suas fichas pelo celular para treinar na academia.</li>
       </ol>
-      <button id="btnResetAll" class="mt-4 w-full text-xs border border-rose-500/40 text-rose-300 rounded-xl py-2 hover:bg-rose-500/10 transition">Limpar sessão atual (Novo Aluno)</button>
+      <div class="p-3 rounded-xl border border-sky-400/20 bg-sky-400/5 text-xs text-sky-300">
+        💡 <b>Dica</b>: Use o botão <b>"👀 Ver como Aluno"</b> no topo para conferir exatamente como as fichas de treino aparecem no celular do aluno.
+      </div>
+      <button id="btnResetAll" class="mt-2 w-full text-xs border border-rose-500/40 text-rose-300 rounded-xl py-2 hover:bg-rose-500/10 transition">Limpar sessão atual (Desvincular Aluno)</button>
     </div>
   </div>
 </section>
@@ -565,8 +805,28 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 <script>
 /* ================= ESTADO ================= */
 const LS_KEY='runlab_state_v2';
-let state={currentAthleteId:null,currentAssessmentId:null,profile:{name:'',age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},plan:{freq:3,goal:'cond',phase:'base'}};
-try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s,{profile:Object.assign({name:'',age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},s.profile||{}),screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})});}catch(e){}
+const DEFAULT_PROFILE={
+  name:'',accessCode:'',pin:'',email:'',phone:'',
+  age:30,sex:'m',weight:'',height:'',restHr:'',hrMax:'',
+  level:'int',goal:'cond',clinicalNotes:''
+};
+let state={
+  currentAthleteId:null,currentAssessmentId:null,
+  profile:Object.assign({},DEFAULT_PROFILE),
+  screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},
+  test:null,tte:null,tteVitals:{pre:{pa:'',fc:'',spo2:''}},
+  plan:{freq:3,goal:'cond',phase:'base'}
+};
+try{
+  const s=JSON.parse(localStorage.getItem(LS_KEY));
+  if(s){
+    state=Object.assign(state,s,{
+      profile:Object.assign({},DEFAULT_PROFILE,s.profile||{}),
+      screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},s.screen||{}),
+      tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},s.tteVitals||{})
+    });
+  }
+}catch(e){}
 const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(state));
 const $=q=>document.querySelector(q);
 
@@ -585,26 +845,54 @@ function showTab(id){
   if(id==='zonas')renderZones();if(id==='plano')renderPlan();if(id==='tolerancia')renderTte();
   if(id==='teste')renderTestView();if(id==='triagem')renderScreen();
   if(id==='atletas'&&typeof AthleteCloudDB!=='undefined')AthleteCloudDB.renderUI();
+  if(id==='perfil'&&typeof StudentHub!=='undefined')StudentHub.syncUI();
 }
 document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 document.querySelectorAll('.goto').forEach(b=>b.onclick=()=>showTab(b.dataset.goto));
 
-/* ================= PERFIL ================= */
-const pFields={pName:'name',pAge:'age',pSex:'sex',pWeight:'weight',pHeight:'height',pHrMax:'hrMax',pLevel:'level',pGoal:'goal'};
+/* ================= PERFIL / CENTRAL DE ALUNOS ================= */
+const pFields={
+  pName:'name',pAccessCode:'accessCode',pPin:'pin',pEmail:'email',pPhone:'phone',
+  pAge:'age',pSex:'sex',pWeight:'weight',pHeight:'height',pRestHr:'restHr',
+  pHrMax:'hrMax',pLevel:'level',pGoal:'goal',pClinicalNotes:'clinicalNotes'
+};
 function syncProfileInputs(){
   Object.entries(pFields).forEach(([id,key])=>{
     const el=$('#'+id);
     if(el)el.value=state.profile[key]??'';
   });
+  if(state.profile.restHr&&!state.screen.fc){
+    state.screen.fc=state.profile.restHr;
+    const sfc=$('#sFc');if(sfc)sfc.value=state.profile.restHr;
+  }
   const chip=$('#activeAthleteChip');
   if(chip){
     const hasName=state.profile.name&&String(state.profile.name).trim().length>=2;
     chip.classList.toggle('hidden',!hasName);
-    if(hasName)chip.textContent='🏃 Atleta ativo: '+state.profile.name+(state.currentAthleteId?' (vinculado à nuvem)':'');
+    if(hasName){
+      chip.textContent='🏃 Atleta ativo: '+state.profile.name+(state.profile.accessCode?' ('+state.profile.accessCode+')':'')+(state.currentAthleteId?' · Nuvem':'');
+    }
+  }
+  const badge=$('#formBadgeStudentMode');
+  if(badge){
+    badge.textContent=state.currentAthleteId?`Editando: ${state.profile.name||'Aluno'}`:'Novo Cadastro';
+    badge.className=state.currentAthleteId?'chip bg-sky-400/10 text-sky-300 border border-sky-400/30 text-[10px]':'chip bg-lime/10 text-lime border border-lime/30 text-[10px]';
+  }
+  const btnAsStud=$('#btnViewAsStudent');
+  if(btnAsStud){
+    btnAsStud.classList.toggle('hidden',!state.currentAthleteId&&!state.profile.name);
   }
 }
-Object.entries(pFields).forEach(([id,key])=>{const el=$('#'+id);if(!el)return;el.value=state.profile[key]??el.value;
-  el.addEventListener('input',()=>{state.profile[key]=el.value;save();syncProfileInputs();});});
+Object.entries(pFields).forEach(([id,key])=>{
+  const el=$('#'+id);
+  if(!el)return;
+  el.addEventListener('input',()=>{
+    state.profile[key]=el.value;
+    if(key==='restHr'){state.screen.fc=el.value;const sfc=$('#sFc');if(sfc)sfc.value=el.value;}
+    save();
+    syncProfileInputs();
+  });
+});
 syncProfileInputs();
 const hrMaxUsed=()=>computeHrMax(state.profile.hrMax,state.profile.age);
 
@@ -1755,19 +2043,26 @@ const AthleteCloudDB=(()=>{
       else prevAssessments.unshift(snap);
       prevAssessments.sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));
 
+      const prevProf = existing && existing.profile ? existing.profile : {};
       const docData=JSON.parse(JSON.stringify({
         id:athId,
         name,
         nameLower:nLower,
         profile:{
           name,
-          age:state.profile.age||30,
-          sex:state.profile.sex||'m',
-          weight:state.profile.weight||'',
-          height:state.profile.height||'',
-          hrMax:state.profile.hrMax||'',
-          level:state.profile.level||'int',
-          goal:state.profile.goal||'cond'
+          accessCode: state.profile.accessCode || prevProf.accessCode || '',
+          pin: state.profile.pin || prevProf.pin || '',
+          email: state.profile.email || prevProf.email || '',
+          phone: state.profile.phone || prevProf.phone || '',
+          age: state.profile.age || 30,
+          sex: state.profile.sex || 'm',
+          weight: state.profile.weight || '',
+          height: state.profile.height || '',
+          restHr: state.profile.restHr || '',
+          hrMax: state.profile.hrMax || '',
+          level: state.profile.level || 'int',
+          goal: state.profile.goal || 'cond',
+          clinicalNotes: state.profile.clinicalNotes || prevProf.clinicalNotes || ''
         },
         assessments:prevAssessments,
         createdAtMs:existing&&existing.createdAtMs?existing.createdAtMs:now,
@@ -1793,6 +2088,79 @@ const AthleteCloudDB=(()=>{
     }
   }
 
+  async function saveAthleteProfileWithAuth(profData){
+    if(!db&&!(await init())){
+      alert('Não foi possível conectar ao Firebase Firestore.');
+      return null;
+    }
+    const name=String(profData.name||'').trim();
+    if(name.length<2){
+      alert('O nome do aluno deve ter no mínimo 2 caracteres.');
+      return null;
+    }
+    const nLower=normName(name);
+    let code=String(profData.accessCode||'').trim().toUpperCase();
+    let pin=String(profData.pin||'').trim();
+    if(!code||!pin){
+      const gen=(typeof generateStudentAccessCode==='function')?generateStudentAccessCode(name):{code:name.toUpperCase().slice(0,6)+'-100',pin:'1234'};
+      if(!code)code=gen.code;
+      if(!pin)pin=gen.pin;
+    }
+    const now=Date.now();
+    let existing=null;
+    if(state.currentAthleteId){
+      existing=athletesCache.find(a=>a.id===state.currentAthleteId);
+    }
+    if(!existing){
+      existing=athletesCache.find(a=>normName(a.name)===nLower||(a.profile&&a.profile.accessCode===code));
+    }
+    const athId=existing?existing.id:('ath_'+now+'_'+Math.random().toString(36).slice(2,6));
+    const prevAssessments=existing&&Array.isArray(existing.assessments)?[...existing.assessments]:[];
+
+    const docData=JSON.parse(JSON.stringify({
+      id:athId,
+      name,
+      nameLower:nLower,
+      profile:{
+        name,
+        accessCode:code,
+        pin,
+        email:profData.email||'',
+        phone:profData.phone||'',
+        age:profData.age||30,
+        sex:profData.sex||'m',
+        weight:profData.weight||'',
+        height:profData.height||'',
+        restHr:profData.restHr||'',
+        hrMax:profData.hrMax||'',
+        level:profData.level||'int',
+        goal:profData.goal||'cond',
+        clinicalNotes:profData.clinicalNotes||''
+      },
+      assessments:prevAssessments,
+      createdAtMs:existing&&existing.createdAtMs?existing.createdAtMs:now,
+      updatedAtMs:now
+    }));
+
+    try{
+      setStatus('☁ Gravando cadastro de aluno no Firestore…','amber');
+      await db.collection(COLLECTION).doc(athId).set(docData);
+      state.currentAthleteId=athId;
+      state.profile=Object.assign({},DEFAULT_PROFILE,docData.profile);
+      if(docData.profile.restHr){state.screen.fc=docData.profile.restHr;const sfc=$('#sFc');if(sfc)sfc.value=docData.profile.restHr;}
+      save();
+      syncProfileInputs();
+      await listAthletes();
+      setStatus(`☁ Aluno salvo: ${name} (Código: ${code})`,'lime');
+      return docData;
+    }catch(err){
+      console.error('Erro ao salvar ficha do aluno:',err);
+      setStatus('⚠ Falha ao salvar no Firestore','rose');
+      alert('Erro ao salvar no Firestore: '+err.message);
+      return null;
+    }
+  }
+
   function applyStateToUI(){
     syncProfileInputs();
     ['sPas','sPad','sFc','sSpo2','sGlicose'].forEach(id=>{
@@ -1814,8 +2182,8 @@ const AthleteCloudDB=(()=>{
     state={
       currentAthleteId:ath.id,
       currentAssessmentId:null,
-      profile:Object.assign({name:ath.name,age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},ath.profile||{}),
-      screen:{pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},
+      profile:Object.assign({},DEFAULT_PROFILE,ath.profile||{},{name:ath.name}),
+      screen:{pas:'',pad:'',fc:(ath.profile&&ath.profile.restHr)||'',spo2:'',glicose:'',limits:{},symp:{}},
       test:null,
       tte:null,
       tteVitals:{pre:{pa:'',fc:'',spo2:''}},
@@ -1834,13 +2202,14 @@ const AthleteCloudDB=(()=>{
     state={
       currentAthleteId:ath.id,
       currentAssessmentId:asmt.id,
-      profile:Object.assign({name:ath.name,age:30,sex:'m',weight:'',height:'',hrMax:'',level:'int',goal:'cond'},ath.profile||{},asmt.profileSnapshot||{},{name:ath.name}),
+      profile:Object.assign({},DEFAULT_PROFILE,ath.profile||{},asmt.profileSnapshot||{},{name:ath.name}),
       screen:Object.assign({pas:'',pad:'',fc:'',spo2:'',glicose:'',limits:{},symp:{}},asmt.screen||{}),
       test:asmt.test?JSON.parse(JSON.stringify(asmt.test)):null,
       tte:asmt.tte?JSON.parse(JSON.stringify(asmt.tte)):null,
       tteVitals:Object.assign({pre:{pa:'',fc:'',spo2:''}},asmt.tteVitals||{}),
       plan:Object.assign({freq:3,goal:'cond',phase:'base'},asmt.plan||{})
     };
+    if(state.profile.restHr&&!state.screen.fc)state.screen.fc=state.profile.restHr;
     save();
     applyStateToUI();
     showTab(state.test?'teste':'perfil');
@@ -2056,12 +2425,705 @@ const AthleteCloudDB=(()=>{
   }
 
   return{
-    init,listAthletes,saveCurrentAssessment,startNewAssessmentForAthlete,
-    loadAssessment,deleteAssessment,deleteAthlete,renderUI:()=>renderList(),
-    renderCompare,getComparingAthleteId:()=>comparingAthleteId,exportBackupJson,importBackupJson
+    init,getDb:async()=>(!db?(await init(),db):db),listAthletes,saveCurrentAssessment,saveAthleteProfileWithAuth,
+    startNewAssessmentForAthlete,loadAssessment,deleteAssessment,deleteAthlete,renderUI:()=>renderList(),
+    renderCompare,getComparingAthleteId:()=>comparingAthleteId,exportBackupJson,importBackupJson,
+    getCachedAthletes:()=>athletesCache,getAthleteById:id=>athletesCache.find(a=>a.id===id)
   };
 })();
 
+/* ================= GERENCIADOR DE SESSÃO E TELAS (feature 009) ================= */
+const AuthSessionManager=(()=>{
+  const SESS_KEY='runlab_auth_session';
+
+  function getSession(){
+    try{
+      const r=localStorage.getItem(SESS_KEY);
+      return r?JSON.parse(r):null;
+    }catch(e){return null;}
+  }
+
+  function setSession(data){
+    localStorage.setItem(SESS_KEY,JSON.stringify(Object.assign({timestamp:Date.now()},data)));
+    applyView();
+  }
+
+  function clearSession(){
+    localStorage.removeItem(SESS_KEY);
+    applyView();
+  }
+
+  function applyView(){
+    const sess=getSession();
+    const vAuth=document.getElementById('view-auth');
+    const vProf=document.getElementById('view-professor');
+    const vStud=document.getElementById('view-portal-aluno');
+    const tabbar=document.getElementById('tabbar');
+    const uBadge=document.getElementById('headerUserBadge');
+    const btnLogout=document.getElementById('btnLogout');
+    const btnAsStud=document.getElementById('btnViewAsStudent');
+
+    if(!sess){
+      if(vAuth)vAuth.classList.remove('hidden');
+      if(vProf)vProf.classList.add('hidden');
+      if(vStud)vStud.classList.add('hidden');
+      if(tabbar)tabbar.classList.add('hidden');
+      if(uBadge)uBadge.classList.add('hidden');
+      if(btnLogout)btnLogout.classList.add('hidden');
+      if(btnAsStud)btnAsStud.classList.add('hidden');
+      return;
+    }
+
+    if(sess.role==='professor'){
+      if(vAuth)vAuth.classList.add('hidden');
+      if(vProf)vProf.classList.remove('hidden');
+      if(vStud)vStud.classList.add('hidden');
+      if(tabbar)tabbar.classList.remove('hidden');
+      if(uBadge){
+        uBadge.classList.remove('hidden');
+        uBadge.textContent='👨‍🏫 Prof. '+(sess.displayName||'Avaliador');
+      }
+      if(btnLogout)btnLogout.classList.remove('hidden');
+      if(btnAsStud){
+        btnAsStud.classList.toggle('hidden',!state.currentAthleteId&&!state.profile.name);
+      }
+      showTab('perfil');
+      return;
+    }
+
+    if(sess.role==='student'){
+      if(vAuth)vAuth.classList.add('hidden');
+      if(vProf)vProf.classList.add('hidden');
+      if(vStud)vStud.classList.remove('hidden');
+      if(tabbar)tabbar.classList.add('hidden');
+      if(uBadge){
+        uBadge.classList.remove('hidden');
+        uBadge.textContent='🏃 '+sess.displayName;
+      }
+      if(btnLogout)btnLogout.classList.remove('hidden');
+      if(btnAsStud)btnAsStud.classList.add('hidden');
+
+      const ath=sess.athleteData||AthleteCloudDB.getAthleteById(sess.userId)||{name:sess.displayName,profile:{name:sess.displayName}};
+      StudentPortal.render(ath,false);
+    }
+  }
+
+  return{getSession,setSession,clearSession,applyView};
+})();
+
+/* ================= MÓDULO DE AUTENTICAÇÃO COM FIRESTORE (feature 009) ================= */
+const ProfessorAuthDB=(()=>{
+  const COLLECTION='professors';
+
+  async function sha256(str){
+    try{
+      if(window.crypto&&crypto.subtle&&crypto.subtle.digest){
+        const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+    }catch(e){}
+    let h=0x811c9dc5;
+    for(let i=0;i<str.length;i++){
+      h^=str.charCodeAt(i);
+      h+=(h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24);
+    }
+    return('00000000'+(h>>>0).toString(16)).slice(-8).repeat(8);
+  }
+
+  function showAuthAlert(msg,tone='rose'){
+    const el=document.getElementById('authAlert');
+    if(!el)return;
+    el.textContent=msg;
+    el.classList.remove('hidden');
+    el.className='text-xs rounded-xl p-3 border '+(tone==='lime'?'bg-lime/10 text-lime border-lime/30':'bg-rose-500/10 text-rose-300 border-rose-500/30');
+  }
+
+  async function registerProfessor({name,email,cref,password}){
+    name=String(name||'').trim();
+    email=String(email||'').trim().toLowerCase();
+    password=String(password||'').trim();
+    if(name.length<3)throw new Error('O nome do professor deve ter pelo menos 3 caracteres.');
+    if(email.length<3||!email.includes('@'))throw new Error('Informe um e-mail válido.');
+    if(password.length<4)throw new Error('A senha deve ter no mínimo 4 caracteres.');
+
+    const db=await AthleteCloudDB.getDb();
+    if(!db)throw new Error('Não foi possível conectar ao banco de dados Firestore.');
+
+    const snap=await db.collection(COLLECTION).where('emailLower','==',email).limit(1).get();
+    if(!snap.empty){
+      throw new Error('Já existe uma conta de professor cadastrada com este e-mail.');
+    }
+
+    const pHash=await sha256(password);
+    const profId='prof_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    const docData={
+      id:profId,
+      name,
+      email,
+      emailLower:email,
+      cref:String(cref||'').trim(),
+      passwordHash:pHash,
+      createdAt:new Date().toISOString(),
+      updatedAt:new Date().toISOString()
+    };
+
+    await db.collection(COLLECTION).doc(profId).set(docData);
+    AuthSessionManager.setSession({
+      role:'professor',
+      userId:profId,
+      displayName:name,
+      email
+    });
+    return docData;
+  }
+
+  async function loginProfessor({email,password}){
+    email=String(email||'').trim().toLowerCase();
+    password=String(password||'').trim();
+    if(!email||!password)throw new Error('Preencha o e-mail e a senha.');
+
+    const db=await AthleteCloudDB.getDb();
+    if(!db)throw new Error('Não foi possível conectar ao banco de dados Firestore.');
+
+    const snap=await db.collection(COLLECTION).where('emailLower','==',email).limit(1).get();
+    if(snap.empty){
+      throw new Error('E-mail ou senha incorretos.');
+    }
+    const prof=snap.docs[0].data();
+    const pHash=await sha256(password);
+    if(prof.passwordHash!==pHash){
+      throw new Error('E-mail ou senha incorretos.');
+    }
+
+    AuthSessionManager.setSession({
+      role:'professor',
+      userId:prof.id||snap.docs[0].id,
+      displayName:prof.name,
+      email:prof.emailLower
+    });
+    return prof;
+  }
+
+  async function loginStudent({codeOrName,pin}){
+    codeOrName=String(codeOrName||'').trim();
+    pin=String(pin||'').trim();
+    if(!codeOrName||!pin)throw new Error('Preencha seu Nome ou Código de Acesso e seu PIN.');
+
+    const norm=s=>String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const termNorm=norm(codeOrName);
+
+    const athletes=await AthleteCloudDB.listAthletes();
+    const match=athletes.find(a=>{
+      const p=a.profile||{};
+      const c=norm(p.accessCode);
+      const n=norm(p.name||a.name);
+      const e=norm(p.email);
+      return(c&&c===termNorm)||(n&&n===termNorm)||(e&&e===termNorm);
+    });
+
+    if(!match){
+      throw new Error('Aluno não encontrado com este Nome ou Código. Verifique com seu professor.');
+    }
+
+    const savedPin=String(match.profile?.pin||'').trim();
+    if(savedPin&&savedPin!==pin){
+      throw new Error('PIN / Senha de acesso incorreta.');
+    }
+
+    AuthSessionManager.setSession({
+      role:'student',
+      userId:match.id,
+      displayName:match.profile?.name||match.name,
+      athleteData:match
+    });
+    return match;
+  }
+
+  return{registerProfessor,loginProfessor,loginStudent,showAuthAlert};
+})();
+
+/* ================= PORTAL DO ALUNO / TREINOS NA ESTEIRA (feature 009) ================= */
+const StudentPortal=(()=>{
+  let currentWorkoutCards=[];
+  let currentFilter='all';
+
+  function render(athleteDoc,isPreview=false){
+    if(!athleteDoc)return;
+    const p=athleteDoc.profile||{};
+    const name=p.name||athleteDoc.name||'Atleta';
+    const asmts=Array.isArray(athleteDoc.assessments)?athleteDoc.assessments:[];
+
+    const greeting=document.getElementById('studGreeting');
+    if(greeting)greeting.textContent=`Olá, ${name}!`;
+
+    const previewBadge=document.getElementById('studPreviewBadge');
+    if(previewBadge)previewBadge.classList.toggle('hidden',!isPreview);
+
+    const btnBack=document.getElementById('btnStudBackToProf');
+    if(btnBack)btnBack.classList.toggle('hidden',!isPreview);
+
+    const btnLogout=document.getElementById('btnStudLogout');
+    if(btnLogout)btnLogout.classList.toggle('hidden',isPreview);
+
+    const latest=asmts.find(a=>a.test&&a.test.vPeak>0)||asmts[0];
+    const meta=document.getElementById('studEvaluationMeta');
+
+    if(!latest||!latest.test||!latest.test.vPeak){
+      if(meta)meta.textContent='Aguardando 1ª Avaliação na Esteira: seus treinos personalizados com velocidades para programar na esteira estarão disponíveis aqui assim que seu professor registrar seu primeiro teste incremental.';
+      document.getElementById('studVPeak').textContent='—';
+      document.getElementById('studVPeakPace').textContent='Pace de pico: —';
+      document.getElementById('studVo2').textContent='—';
+      document.getElementById('studVo2Class').textContent='Aguardando teste';
+      document.getElementById('studVt1').textContent='—';
+      document.getElementById('studVt1Hr').textContent='FC: —';
+      document.getElementById('studVt2').textContent='—';
+      document.getElementById('studVt2Hr').textContent='FC: —';
+      document.getElementById('studZonesTable').innerHTML='<p class="text-xs text-slate-400 py-3">Zonas não calculadas ainda.</p>';
+      document.getElementById('studWorkoutCards').innerHTML=`
+        <div class="card rounded-2xl p-6 text-center text-slate-400 col-span-2 space-y-2">
+          <p class="text-base text-white font-bold">📋 Nenhum treino liberado ainda</p>
+          <p class="text-xs">Assim que o teste incremental for concluído pelo seu professor, todas as suas fichas com velocidades para programar na esteira aparecerão aqui automaticamente.</p>
+        </div>`;
+      return;
+    }
+
+    if(meta){
+      meta.textContent=`Avaliação mais recente realizada em ${latest.dateFormatted||'data recente'} · Protocolo Incremental de 2 minutos.`;
+    }
+
+    const t=latest.test;
+    document.getElementById('studVPeak').textContent=t.vPeak.toFixed(1);
+    document.getElementById('studVPeakPace').textContent=`Pace de pico: ${pace(t.vPeak)}`;
+    document.getElementById('studVo2').textContent=t.vo2max.toFixed(1);
+    const diag=diagnoseVO2(t.vo2max,p.age||30,p.sex||'m');
+    document.getElementById('studVo2Class').textContent=`Classificação: ${diag.cls}`;
+    document.getElementById('studVt1').textContent=t.vt1V!=null?t.vt1V.toFixed(1):'—';
+    document.getElementById('studVt1Hr').textContent=t.fcVT1?`FC: ${t.fcVT1} bpm`:'FC: —';
+    document.getElementById('studVt2').textContent=t.vt2V!=null?t.vt2V.toFixed(1):'—';
+    document.getElementById('studVt2Hr').textContent=t.fcVT2?`FC: ${t.fcVT2} bpm`:'FC: —';
+
+    // Zonas de Treino
+    const hrMax=t.hrMax||computeHrMax(p.hrMax,p.age||30);
+    const zones=computeZones(t.vPeak,hrMax,t.vt1V,t.vt2V,t.fcVT1,t.fcVT2);
+    const zColors={
+      'Z1':'border-sky-400/40 text-sky-300 bg-sky-400/10',
+      'Z2':'border-emerald-400/40 text-emerald-300 bg-emerald-400/10',
+      'Z3':'border-amber-400/40 text-amber-300 bg-amber-400/10',
+      'Z4':'border-orange-400/40 text-orange-300 bg-orange-400/10',
+      'Z5':'border-rose-400/40 text-rose-300 bg-rose-400/10'
+    };
+
+    document.getElementById('studZonesTable').innerHTML=`
+      <table class="w-full text-xs text-left">
+        <thead class="text-slate-400 border-b border-line">
+          <tr>
+            <th class="py-2 px-3">Zona</th>
+            <th class="py-2 px-3">Velocidade na Esteira</th>
+            <th class="py-2 px-3">Pace Estimado</th>
+            <th class="py-2 px-3">BPM Alvo</th>
+            <th class="py-2 px-3">Sensação (Talk Test)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line/60">
+          ${zones.map(z=>`
+            <tr>
+              <td class="py-2.5 px-3">
+                <span class="chip ${zColors[z.id]||'chip bg-panel2'}">${z.id} · ${z.name}</span>
+              </td>
+              <td class="py-2.5 px-3 num font-bold text-white">${z.minV.toFixed(1)} – ${z.maxV.toFixed(1)} km/h</td>
+              <td class="py-2.5 px-3 num text-slate-300">${pace(z.maxV)} a ${pace(z.minV)}</td>
+              <td class="py-2.5 px-3 num text-lime font-semibold">${z.hrMin} – ${z.hrMax} bpm</td>
+              <td class="py-2.5 px-3 text-slate-300">${z.rpe}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    // Prescrições de Treino
+    currentWorkoutCards=generateWorkoutPrescriptions(latest);
+    renderWorkoutCards();
+  }
+
+  function renderWorkoutCards(){
+    const container=document.getElementById('studWorkoutCards');
+    if(!container)return;
+    const filtered=currentFilter==='all'
+      ?currentWorkoutCards
+      :currentWorkoutCards.filter(c=>c.category===currentFilter);
+
+    if(!filtered.length){
+      container.innerHTML='<p class="text-xs text-slate-400 col-span-2 py-4">Nenhum treino nesta categoria.</p>';
+      return;
+    }
+
+    container.innerHTML=filtered.map(card=>{
+      const zBadgeColor={
+        blue:'bg-sky-400/10 text-sky-300 border-sky-400/30',
+        green:'bg-emerald-400/10 text-emerald-300 border-emerald-400/30',
+        amber:'bg-amber-400/10 text-amber-300 border-amber-400/30',
+        orange:'bg-orange-400/10 text-orange-300 border-orange-400/30',
+        rose:'bg-rose-400/10 text-rose-300 border-rose-400/30'
+      }[card.colorTheme]||'bg-lime/10 text-lime border-lime/30';
+
+      return `
+        <div class="card rounded-2xl p-5 border-line space-y-4 hover:border-lime/40 transition">
+          <div class="flex items-start justify-between gap-2 border-b border-line pb-3">
+            <div>
+              <span class="chip ${zBadgeColor} text-[10px] mb-1">${card.targetZone} · ${card.category.toUpperCase()}</span>
+              <h4 class="text-base font-extrabold text-white">${card.title}</h4>
+              <p class="text-[11px] text-slate-400 mt-0.5">${card.goalDescription}</p>
+            </div>
+            <span class="chip bg-panel2 text-slate-300 border border-line text-[10px] whitespace-nowrap">⏱ ~${card.totalDurationMin} min</span>
+          </div>
+
+          <!-- Destaque Numérico Gigante para Programar na Esteira -->
+          <div class="grid grid-cols-2 gap-3 bg-ink/70 p-3.5 rounded-xl border border-line/80">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">Velocidade na Esteira</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-3xl sm:text-4xl font-black text-lime num">${card.mainSpeedKmh.toFixed(1)}</span>
+                <span class="text-xs text-slate-400 font-bold">km/h</span>
+              </div>
+              <p class="text-xs text-slate-300 num mt-0.5">Pace: <b class="text-white">${card.mainPaceStr}</b></p>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">BPM Esperado</span>
+              <div class="text-sm font-bold text-white mt-1.5 num">${card.mainHrRangeStr}</div>
+              <p class="text-[10px] text-slate-400 mt-1">${card.rpeDescription}</p>
+            </div>
+          </div>
+
+          <!-- Passo a Passo da Sessão -->
+          <div class="space-y-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Roteiro da Sessão na Esteira</span>
+            <div class="space-y-1.5 text-xs">
+              ${card.steps.map(st=>`
+                <div class="flex items-start gap-2 p-2 rounded-lg bg-panel2/60 border border-line/50">
+                  <span class="chip ${st.phase==='main'?'bg-lime text-ink':(st.phase==='warmup'?'bg-sky-400/20 text-sky-300':'bg-slate-700 text-slate-300')} text-[9px] py-0.5 px-1.5 font-bold mt-0.5">
+                    ${st.label}
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline justify-between gap-1">
+                      <span class="font-bold text-white num">${st.speedKmh?st.speedKmh.toFixed(1)+' km/h':''} ${st.paceStr?'('+st.paceStr+')':''}</span>
+                      <span class="text-[10px] text-slate-400 num">${st.durationStr}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-snug mt-0.5">${st.instruction}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function setFilter(filt){
+    currentFilter=filt;
+    document.querySelectorAll('#studWorkoutFilters button').forEach(b=>{
+      const active=b.dataset.wfilter===filt;
+      b.className=active
+        ?'px-3 py-1.5 rounded-lg bg-lime text-ink font-bold transition'
+        :'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+    });
+    renderWorkoutCards();
+  }
+
+  return{render,setFilter};
+})();
+
+/* ================= CENTRAL PROFISSIONAL DE ALUNOS (feature 009) ================= */
+const StudentHub=(()=>{
+  function syncUI(){
+    renderSearchResults();
+  }
+
+  function renderSearchResults(){
+    const input=document.getElementById('athHubSearchInput');
+    const container=document.getElementById('athHubSearchResults');
+    if(!input||!container)return;
+    const query=input.value.trim().toLowerCase();
+    if(!query){
+      container.classList.add('hidden');
+      container.innerHTML='';
+      return;
+    }
+
+    const norm=s=>String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const qNorm=norm(query);
+    const athletes=AthleteCloudDB.getCachedAthletes();
+    const matches=athletes.filter(a=>{
+      const p=a.profile||{};
+      return norm(p.name||a.name).includes(qNorm)||
+             norm(p.accessCode).includes(qNorm)||
+             norm(p.email).includes(qNorm);
+    });
+
+    container.classList.remove('hidden');
+    if(!matches.length){
+      container.innerHTML=`
+        <div class="p-3 text-xs text-slate-400 bg-ink rounded-xl border border-line flex items-center justify-between">
+          <span>Nenhum aluno encontrado para "${input.value}".</span>
+          <button id="btnHubQuickRegister" type="button" class="text-lime font-bold hover:underline">+ Cadastrar agora</button>
+        </div>`;
+      document.getElementById('btnHubQuickRegister')?.addEventListener('click',()=>{
+        document.getElementById('pName').value=input.value;
+        state.profile.name=input.value;
+        const gen=(typeof generateStudentAccessCode==='function')?generateStudentAccessCode(input.value):{code:input.value.slice(0,6)+'-100',pin:'1234'};
+        document.getElementById('pAccessCode').value=gen.code;
+        document.getElementById('pPin').value=gen.pin;
+        state.profile.accessCode=gen.code;
+        state.profile.pin=gen.pin;
+        container.classList.add('hidden');
+        input.value='';
+        syncProfileInputs();
+      });
+      return;
+    }
+
+    container.innerHTML=matches.map(ath=>{
+      const p=ath.profile||{};
+      const name=p.name||ath.name;
+      const code=p.accessCode||'—';
+      const asmts=Array.isArray(ath.assessments)?ath.assessments:[];
+      const latest=asmts.find(a=>a.test&&a.test.vPeak>0)||asmts[0];
+      const isSelected=state.currentAthleteId===ath.id;
+
+      return `
+        <div class="p-3 rounded-xl bg-ink border ${isSelected?'border-lime/60 bg-lime/5':'border-line'} flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white text-sm">${name}</span>
+              <span class="chip bg-sky-400/10 text-sky-300 border border-sky-400/30 text-[10px] num">${code}</span>
+              ${isSelected?'<span class="chip bg-lime/20 text-lime text-[10px] font-bold">Ativo</span>':''}
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              ${p.age?p.age+' anos · ':''}${p.sex==='f'?'Fem':'Masc'}${p.weight?' · '+p.weight+' kg':''}
+              ${latest&&latest.test?` · Último vPico: <b class="text-lime num">${latest.test.vPeak.toFixed(1)} km/h</b>`:' · Sem testes'}
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" data-hub-select="${ath.id}" class="px-3 py-1.5 rounded-lg bg-lime text-ink text-xs font-bold hover:brightness-110 transition">✔ Selecionar</button>
+            <button type="button" data-hub-portal="${ath.id}" class="px-2.5 py-1.5 rounded-lg border border-sky-400/50 text-sky-300 text-xs font-semibold hover:bg-sky-400/10 transition">👀 Treinos</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function selectStudent(athId){
+    const ath=AthleteCloudDB.getAthleteById(athId);
+    if(!ath)return;
+    state.currentAthleteId=ath.id;
+    state.currentAssessmentId=null;
+    const p=ath.profile||{};
+    state.profile=Object.assign({},DEFAULT_PROFILE,p,{name:ath.name});
+    if(p.restHr){state.screen.fc=p.restHr;const sfc=$('#sFc');if(sfc)sfc.value=p.restHr;}
+    save();
+    syncProfileInputs();
+    const input=document.getElementById('athHubSearchInput');
+    const container=document.getElementById('athHubSearchResults');
+    if(input)input.value='';
+    if(container)container.classList.add('hidden');
+    alert(`Aluno selecionado: ${ath.name} (Código: ${p.accessCode||'—'}). Dados carregados na ficha!`);
+  }
+
+  function startNewStudent(){
+    state.currentAthleteId=null;
+    state.currentAssessmentId=null;
+    state.profile=Object.assign({},DEFAULT_PROFILE);
+    const gen=(typeof generateStudentAccessCode==='function')?generateStudentAccessCode(''):{code:'ALUNO-100',pin:'1234'};
+    state.profile.accessCode=gen.code;
+    state.profile.pin=gen.pin;
+    save();
+    syncProfileInputs();
+    const input=document.getElementById('athHubSearchInput');
+    const container=document.getElementById('athHubSearchResults');
+    if(input)input.value='';
+    if(container)container.classList.add('hidden');
+    document.getElementById('pName')?.focus();
+  }
+
+  return{syncUI,renderSearchResults,selectStudent,startNewStudent};
+})();
+
+/* ================= EVENT LISTENERS DE AUTH, PORTAL E HUB ================= */
+// Alternância entre Professor e Aluno na Auth
+document.getElementById('authBtnRoleProf')?.addEventListener('click',()=>{
+  document.getElementById('authProfPanel')?.classList.remove('hidden');
+  document.getElementById('authStudPanel')?.classList.add('hidden');
+  document.getElementById('authBtnRoleProf').className='py-2.5 rounded-xl bg-lime text-ink transition';
+  document.getElementById('authBtnRoleStud').className='py-2.5 rounded-xl text-slate-400 hover:text-white transition';
+  document.getElementById('authAlert')?.classList.add('hidden');
+});
+document.getElementById('authBtnRoleStud')?.addEventListener('click',()=>{
+  document.getElementById('authStudPanel')?.classList.remove('hidden');
+  document.getElementById('authProfPanel')?.classList.add('hidden');
+  document.getElementById('authBtnRoleStud').className='py-2.5 rounded-xl bg-lime text-ink transition';
+  document.getElementById('authBtnRoleProf').className='py-2.5 rounded-xl text-slate-400 hover:text-white transition';
+  document.getElementById('authAlert')?.classList.add('hidden');
+});
+
+// Alternância entre Login e Cadastro de Professor
+document.getElementById('btnToggleProfMode')?.addEventListener('click',e=>{
+  const formLogin=document.getElementById('formProfLogin');
+  const formReg=document.getElementById('formProfRegister');
+  const isRegVisible=!formReg.classList.contains('hidden');
+  if(isRegVisible){
+    formReg.classList.add('hidden');
+    formLogin.classList.remove('hidden');
+    e.target.textContent='Criar nova conta de professor';
+  }else{
+    formLogin.classList.add('hidden');
+    formReg.classList.remove('hidden');
+    e.target.textContent='Já tenho conta (fazer login)';
+  }
+  document.getElementById('authAlert')?.classList.add('hidden');
+});
+
+// Submissão do Login de Professor
+document.getElementById('formProfLogin')?.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const email=document.getElementById('profLoginEmail').value;
+  const pass=document.getElementById('profLoginPass').value;
+  try{
+    ProfessorAuthDB.showAuthAlert('Autenticando professor…','lime');
+    await ProfessorAuthDB.loginProfessor({email,password:pass});
+  }catch(err){
+    ProfessorAuthDB.showAuthAlert(err.message,'rose');
+  }
+});
+
+// Submissão do Cadastro de Professor
+document.getElementById('formProfRegister')?.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const name=document.getElementById('profRegName').value;
+  const email=document.getElementById('profRegEmail').value;
+  const cref=document.getElementById('profRegCref').value;
+  const pass=document.getElementById('profRegPass').value;
+  const pass2=document.getElementById('profRegPass2').value;
+  if(pass!==pass2){
+    ProfessorAuthDB.showAuthAlert('As senhas não conferem. Digite a mesma senha nos dois campos.','rose');
+    return;
+  }
+  try{
+    ProfessorAuthDB.showAuthAlert('Criando conta de professor…','lime');
+    await ProfessorAuthDB.registerProfessor({name,email,cref,password:pass});
+  }catch(err){
+    ProfessorAuthDB.showAuthAlert(err.message,'rose');
+  }
+});
+
+// Submissão do Login de Aluno
+document.getElementById('formStudLogin')?.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const code=document.getElementById('studLoginCode').value;
+  const pin=document.getElementById('studLoginPin').value;
+  try{
+    ProfessorAuthDB.showAuthAlert('Verificando acesso do aluno…','lime');
+    await ProfessorAuthDB.loginStudent({codeOrName:code,pin});
+  }catch(err){
+    ProfessorAuthDB.showAuthAlert(err.message,'rose');
+  }
+});
+
+// Logout
+document.getElementById('btnLogout')?.addEventListener('click',()=>{
+  if(confirm('Deseja realmente sair da conta atual?'))AuthSessionManager.clearSession();
+});
+document.getElementById('btnStudLogout')?.addEventListener('click',()=>{
+  if(confirm('Deseja realmente sair do Portal do Aluno?'))AuthSessionManager.clearSession();
+});
+
+// Alternar para Visão do Aluno (pelo Professor)
+document.getElementById('btnViewAsStudent')?.addEventListener('click',()=>{
+  let ath=null;
+  if(state.currentAthleteId){
+    ath=AthleteCloudDB.getAthleteById(state.currentAthleteId);
+  }
+  if(!ath&&state.profile.name){
+    ath={id:state.currentAthleteId||'temp',name:state.profile.name,profile:state.profile,assessments:state.test?[{test:state.test,dateFormatted:new Date().toLocaleDateString('pt-BR')}]:[]};
+  }
+  if(!ath){
+    alert('Nenhum aluno ativo selecionado no momento.');
+    return;
+  }
+  document.getElementById('view-professor')?.classList.add('hidden');
+  document.getElementById('tabbar')?.classList.add('hidden');
+  document.getElementById('view-portal-aluno')?.classList.remove('hidden');
+  StudentPortal.render(ath,true);
+});
+
+// Voltar do Portal do Aluno para o Painel do Professor
+document.getElementById('btnStudBackToProf')?.addEventListener('click',()=>{
+  document.getElementById('view-portal-aluno')?.classList.add('hidden');
+  document.getElementById('view-professor')?.classList.remove('hidden');
+  document.getElementById('tabbar')?.classList.remove('hidden');
+});
+
+// Filtros do Portal do Aluno
+document.getElementById('studWorkoutFilters')?.addEventListener('click',e=>{
+  const b=e.target.closest('[data-wfilter]');
+  if(b)StudentPortal.setFilter(b.dataset.wfilter);
+});
+
+// Central de Alunos na Tela Inicial (StudentHub)
+document.getElementById('athHubSearchInput')?.addEventListener('input',()=>StudentHub.renderSearchResults());
+document.getElementById('athHubSearchResults')?.addEventListener('click',e=>{
+  const sel=e.target.closest('[data-hub-select]');
+  if(sel){StudentHub.selectStudent(sel.dataset.hubSelect);return;}
+  const port=e.target.closest('[data-hub-portal]');
+  if(port){
+    const ath=AthleteCloudDB.getAthleteById(port.dataset.hubPortal);
+    if(ath){
+      document.getElementById('view-professor')?.classList.add('hidden');
+      document.getElementById('tabbar')?.classList.add('hidden');
+      document.getElementById('view-portal-aluno')?.classList.remove('hidden');
+      StudentPortal.render(ath,true);
+    }
+  }
+});
+
+// Botão "+ Cadastrar Novo Aluno" na Central
+document.getElementById('btnHubNewStudent')?.addEventListener('click',()=>StudentHub.startNewStudent());
+
+// Botão "⚡ Gerar Código/PIN"
+document.getElementById('btnGenerateCodePin')?.addEventListener('click',()=>{
+  const name=document.getElementById('pName').value;
+  const gen=generateStudentAccessCode(name);
+  document.getElementById('pAccessCode').value=gen.code;
+  document.getElementById('pPin').value=gen.pin;
+  state.profile.accessCode=gen.code;
+  state.profile.pin=gen.pin;
+  save();
+});
+
+// Botão "💾 Salvar Aluno & Iniciar Avaliação" na Central de Alunos
+document.getElementById('btnSaveStudentHub')?.addEventListener('click',async()=>{
+  const prof={
+    name:document.getElementById('pName').value,
+    accessCode:document.getElementById('pAccessCode').value,
+    pin:document.getElementById('pPin').value,
+    email:document.getElementById('pEmail').value,
+    phone:document.getElementById('pPhone').value,
+    age:+document.getElementById('pAge').value||30,
+    sex:document.getElementById('pSex').value||'m',
+    weight:+document.getElementById('pWeight').value||'',
+    height:+document.getElementById('pHeight').value||'',
+    restHr:+document.getElementById('pRestHr').value||'',
+    hrMax:+document.getElementById('pHrMax').value||'',
+    level:document.getElementById('pLevel').value||'int',
+    goal:document.getElementById('pGoal').value||'cond',
+    clinicalNotes:document.getElementById('pClinicalNotes').value||''
+  };
+  const res=await AthleteCloudDB.saveAthleteProfileWithAuth(prof);
+  if(res){
+    alert(`Aluno "${res.name}" salvo com sucesso no banco em nuvem!\nCódigo de Acesso do Aluno: ${res.profile.accessCode}\nPIN de Acesso: ${res.profile.pin}\n\nVocê já pode prosseguir para a etapa 2 · Triagem.`);
+  }
+});
+
+// Botão "Avançar para 2 · Triagem →"
+document.getElementById('btnGoTriagem')?.addEventListener('click',()=>showTab('triagem'));
+
+// Ações no cabeçalho e histórico Firestore
 document.getElementById('btnSaveCloud')?.addEventListener('click',()=>AthleteCloudDB.saveCurrentAssessment());
 document.getElementById('btnSaveCurrentToCloud')?.addEventListener('click',()=>AthleteCloudDB.saveCurrentAssessment());
 document.getElementById('btnRefreshCloud')?.addEventListener('click',()=>AthleteCloudDB.listAthletes());
@@ -2088,6 +3150,17 @@ document.getElementById('cmpCurrSelect')?.addEventListener('change',e=>{
 document.getElementById('athListContainer')?.addEventListener('click',e=>{
   const btnNew=e.target.closest('[data-ath-new]');
   if(btnNew){AthleteCloudDB.startNewAssessmentForAthlete(btnNew.dataset.athNew);return;}
+  const btnPortal=e.target.closest('[data-ath-portal]');
+  if(btnPortal){
+    const ath=AthleteCloudDB.getAthleteById(btnPortal.dataset.athPortal);
+    if(ath){
+      document.getElementById('view-professor')?.classList.add('hidden');
+      document.getElementById('tabbar')?.classList.add('hidden');
+      document.getElementById('view-portal-aluno')?.classList.remove('hidden');
+      StudentPortal.render(ath,true);
+      return;
+    }
+  }
   const btnCmp=e.target.closest('[data-ath-cmp]');
   if(btnCmp){state.currentAthleteId=btnCmp.dataset.athCmp;AthleteCloudDB.renderCompare(btnCmp.dataset.athCmp);return;}
   const btnDelAth=e.target.closest('[data-ath-del]');
@@ -2097,7 +3170,12 @@ document.getElementById('athListContainer')?.addEventListener('click',e=>{
   const btnDelAsmt=e.target.closest('[data-asmt-del]');
   if(btnDelAsmt){const[aId,sId]=btnDelAsmt.dataset.asmtDel.split('|');AthleteCloudDB.deleteAssessment(aId,sId);return;}
 });
-AthleteCloudDB.init();
+
+// Inicialização
+AuthSessionManager.applyView();
+AthleteCloudDB.init().then(()=>{
+  AuthSessionManager.applyView();
+});
 </script>
 </body>
 </html>

@@ -435,11 +435,212 @@ function compareAssessments(baseAssessment, currentAssessment) {
   };
 }
 
+/* Gera código de acesso único e amigável (ex.: "JULIANA-742") e PIN padrão de 4 dígitos
+   a partir do nome do aluno (feature 009). */
+function generateStudentAccessCode(studentName, saltSeed) {
+  const clean = String(studentName || 'ALUNO')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, ' ')
+    .trim()
+    .split(/\s+/)[0] || 'ALUNO';
+  const prefix = clean.slice(0, 10);
+  const num = saltSeed != null && Number.isFinite(+saltSeed)
+    ? Math.abs(Math.floor(+saltSeed)) % 1000
+    : Math.floor(100 + Math.random() * 900);
+  const numStr = String(num).padStart(3, '0');
+  const code = `${prefix}-${numStr}`;
+  const defaultPin = String(1000 + (num % 9000)).slice(0, 4);
+  return { code, pin: defaultPin };
+}
+
+/* Gera deterministicamente 6 fichas de treino detalhadas para esteira
+   a partir dos limiares fisiológicos de uma avaliação (feature 009). */
+function generateWorkoutPrescriptions(assessment) {
+  if (!assessment) return [];
+  const bt = assessment.test || assessment;
+  const vPeak = +(bt.vPeak || assessment.vPeak || 0);
+  if (!vPeak || Number.isNaN(vPeak) || vPeak <= 0) return [];
+
+  const hrMax = +(bt.hrMax || assessment.hrMax || (assessment.profileSnapshot && assessment.profileSnapshot.hrMax) || 180);
+  const restHr = +(assessment.restHr || (assessment.screen && assessment.screen.fc) || 60);
+  const vt1V = +(bt.vt1V || assessment.vt1V || (vPeak * 0.70).toFixed(1));
+  const vt2V = +(bt.vt2V || assessment.vt2V || (vPeak * 0.85).toFixed(1));
+  const fcVT1 = +(bt.fcVT1 || assessment.fcVT1 || Math.round(restHr + 0.65 * (hrMax - restHr)));
+  const fcVT2 = +(bt.fcVT2 || assessment.fcVT2 || Math.round(restHr + 0.85 * (hrMax - restHr)));
+
+  // 1. Z1 - Regenerativo
+  const z1Speed = +(vPeak * 0.60).toFixed(1);
+  const z1HrMin = Math.round(hrMax * 0.55);
+  const z1HrMax = Math.round(hrMax * 0.70);
+  const cardZ1 = {
+    id: 'rec-z1',
+    category: 'regenerativo',
+    title: 'Treino Regenerativo / Soltura',
+    targetZone: 'Z1',
+    colorTheme: 'blue',
+    goalDescription: 'Recuperação ativa muscular, circulação periférica e alívio do estresse residual.',
+    mainSpeedKmh: z1Speed,
+    mainPaceStr: pace(z1Speed),
+    mainHrMin: z1HrMin,
+    mainHrMax: z1HrMax,
+    mainHrRangeStr: `${z1HrMin} – ${z1HrMax} bpm (< 70% FCmáx)`,
+    rpeDescription: 'Muito leve e sem esforço perceptível (Borg 1–2)',
+    talkTest: 'Fala fácil e contínua, sem qualquer falta de ar',
+    totalDurationMin: 30,
+    steps: [
+      { phase: 'warmup', label: 'Aquecimento', durationStr: '5 min', speedKmh: Math.max(4.0, +(z1Speed - 1.5).toFixed(1)), paceStr: pace(Math.max(4.0, z1Speed - 1.5)), instruction: 'Caminhada rápida para lubrificação articular' },
+      { phase: 'main', label: 'Trote Regenerativo', durationStr: '20 min', speedKmh: z1Speed, paceStr: pace(z1Speed), instruction: `Mantenha a esteira em ${z1Speed} km/h de forma contínua e suave` },
+      { phase: 'cooldown', label: 'Volta à Calma', durationStr: '5 min', speedKmh: 4.5, paceStr: pace(4.5), instruction: 'Caminhada lenta para desaceleração cardíaca' }
+    ]
+  };
+
+  // 2. Z2 - Base Aeróbia Contínua
+  const z2Speed = +(Math.min(vt1V - 0.2, vPeak * 0.72)).toFixed(1);
+  const z2HrMin = Math.round(hrMax * 0.70);
+  const z2HrMax = Math.round(fcVT1 || (hrMax * 0.80));
+  const cardZ2 = {
+    id: 'base-z2',
+    category: 'continuo',
+    title: 'Rodagem de Base Aeróbia',
+    targetZone: 'Z2',
+    colorTheme: 'green',
+    goalDescription: 'Desenvolvimento mitocondrial, eficiência no uso de gorduras como combustível e base para provas longas.',
+    mainSpeedKmh: z2Speed,
+    mainPaceStr: pace(z2Speed),
+    mainHrMin: z2HrMin,
+    mainHrMax: z2HrMax,
+    mainHrRangeStr: `${z2HrMin} – ${z2HrMax} bpm (70%–80% FCmáx)`,
+    rpeDescription: 'Leve a moderado, ritmo conversacional confortável (Borg 3–4)',
+    talkTest: 'Consegue conversar em frases completas confortavelmente',
+    totalDurationMin: 45,
+    steps: [
+      { phase: 'warmup', label: 'Aquecimento Gradual', durationStr: '8 min', speedKmh: Math.max(5.0, +(z2Speed - 1.5).toFixed(1)), paceStr: pace(Math.max(5.0, z2Speed - 1.5)), instruction: 'Progressão suave até a velocidade de cruzeiro' },
+      { phase: 'main', label: 'Rodagem Contínua', durationStr: '32 min', speedKmh: z2Speed, paceStr: pace(z2Speed), instruction: `Corrida contínua e constante a ${z2Speed} km/h na esteira` },
+      { phase: 'cooldown', label: 'Desaquecimento', durationStr: '5 min', speedKmh: 5.0, paceStr: pace(5.0), instruction: 'Caminhada para recuperação e estabilização da FC' }
+    ]
+  };
+
+  // 3. Z3 - Tempo Run / Limiar Anaeróbio
+  const z3Speed = +(Math.max(vt1V + 0.3, Math.min(vt2V, vPeak * 0.83))).toFixed(1);
+  const z3HrMin = Math.round(fcVT1 || (hrMax * 0.80));
+  const z3HrMax = Math.round(fcVT2 || (hrMax * 0.88));
+  const cardZ3 = {
+    id: 'tempo-z3',
+    category: 'tempo',
+    title: 'Tempo Run / Treino de Limiar',
+    targetZone: 'Z3',
+    colorTheme: 'amber',
+    goalDescription: 'Aumento da tolerância e taxa de remoção de lactato, sustentando ritmos competitivos de 10k a 21k.',
+    mainSpeedKmh: z3Speed,
+    mainPaceStr: pace(z3Speed),
+    mainHrMin: z3HrMin,
+    mainHrMax: z3HrMax,
+    mainHrRangeStr: `${z3HrMin} – ${z3HrMax} bpm (80%–88% FCmáx)`,
+    rpeDescription: 'Confortavelmente duro, exige foco mental constante (Borg 5–6)',
+    talkTest: 'Consegue falar apenas frases curtas de 3 a 5 palavras',
+    totalDurationMin: 40,
+    steps: [
+      { phase: 'warmup', label: 'Aquecimento Z1/Z2', durationStr: '10 min', speedKmh: +(z2Speed).toFixed(1), paceStr: pace(z2Speed), instruction: 'Trote progressivo preparando a musculatura e ventilação' },
+      { phase: 'main', label: 'Bloco de Limiar Constante', durationStr: '25 min', speedKmh: z3Speed, paceStr: pace(z3Speed), instruction: `Ajuste a esteira para ${z3Speed} km/h e sustente a cadência sem oscilar` },
+      { phase: 'cooldown', label: 'Volta à Calma', durationStr: '5 min', speedKmh: 5.0, paceStr: pace(5.0), instruction: 'Caminhada e trote leve para retorno à homeostase' }
+    ]
+  };
+
+  // 4. Z4 - Intervalado Longo VO2máx
+  const z4Speed = +(vPeak * 0.96).toFixed(1);
+  const z4RecSpeed = +(Math.max(4.5, vPeak * 0.55)).toFixed(1);
+  const z4HrMin = Math.round(hrMax * 0.90);
+  const z4HrMax = hrMax;
+  const cardZ4 = {
+    id: 'hiit-vo2-z4',
+    category: 'intervalado',
+    title: 'Intervalado Longo VO₂máx (4x 3 min)',
+    targetZone: 'Z4',
+    colorTheme: 'orange',
+    goalDescription: 'Expansão do teto aeróbio (VO₂máx), débito cardíaco máximo e tempo no consumo máximo de O₂.',
+    mainSpeedKmh: z4Speed,
+    recoverySpeedKmh: z4RecSpeed,
+    mainPaceStr: pace(z4Speed),
+    recoveryPaceStr: pace(z4RecSpeed),
+    mainHrMin: z4HrMin,
+    mainHrMax: z4HrMax,
+    mainHrRangeStr: `${z4HrMin} – ${z4HrMax} bpm (90%–98% FCmáx)`,
+    rpeDescription: 'Muito intenso e ofegante no final de cada tiro (Borg 7–8)',
+    talkTest: 'Quase incapaz de falar durante o tiro, respiração profunda',
+    totalDurationMin: 35,
+    steps: [
+      { phase: 'warmup', label: 'Aquecimento Progressivo', durationStr: '10 min', speedKmh: z2Speed, paceStr: pace(z2Speed), instruction: 'Trote moderado com 2 acelerações curtas de 20s' },
+      { phase: 'main', label: 'Série de Tiros: 4x (3 min Tiro / 2 min Trote)', durationStr: '20 min', speedKmh: z4Speed, paceStr: pace(z4Speed), instruction: `4 tiros de 3 minutos a ${z4Speed} km/h, intercalados por 2 minutos de trote leve a ${z4RecSpeed} km/h` },
+      { phase: 'cooldown', label: 'Desaquecimento', durationStr: '5 min', speedKmh: 4.8, paceStr: pace(4.8), instruction: 'Caminhada para normalização da ventilação e FC' }
+    ]
+  };
+
+  // 5. Z4/Z5 - HIIT Curto na Esteira
+  const shortSpeed = +(vPeak * 1.02).toFixed(1);
+  const shortRecSpeed = +(Math.max(4.0, vPeak * 0.50)).toFixed(1);
+  const shortHrMin = Math.round(hrMax * 0.88);
+  const cardShort = {
+    id: 'hiit-short',
+    category: 'intervalado',
+    title: 'HIIT Curto na Esteira (10x 1 min / 1 min)',
+    targetZone: 'Z4/Z5',
+    colorTheme: 'rose',
+    goalDescription: 'Potência aeróbia máxima e rápida cinética de VO₂ com menor sobrecarga central que tiros longos.',
+    mainSpeedKmh: shortSpeed,
+    recoverySpeedKmh: shortRecSpeed,
+    mainPaceStr: pace(shortSpeed),
+    recoveryPaceStr: pace(shortRecSpeed),
+    mainHrMin: shortHrMin,
+    mainHrMax: hrMax,
+    mainHrRangeStr: `${shortHrMin} – ${hrMax} bpm (Pico > 90% FCmáx)`,
+    rpeDescription: 'Vigoroso, velocidade rápida e dinâmica de passadas (Borg 8–9)',
+    talkTest: 'Falar é extremamente difícil ou inviável durante o tiro',
+    totalDurationMin: 35,
+    steps: [
+      { phase: 'warmup', label: 'Aquecimento Dinâmico', durationStr: '10 min', speedKmh: z2Speed, paceStr: pace(z2Speed), instruction: 'Trote e passadas progressivas' },
+      { phase: 'main', label: 'Série 10x (1 min Tiro a vPico / 1 min Trote)', durationStr: '20 min', speedKmh: shortSpeed, paceStr: pace(shortSpeed), instruction: `10 repetições de 1 min a ${shortSpeed} km/h com 1 min de trote/caminhada a ${shortRecSpeed} km/h` },
+      { phase: 'cooldown', label: 'Volta à Calma', durationStr: '5 min', speedKmh: 4.5, paceStr: pace(4.5), instruction: 'Caminhada suave na esteira' }
+    ]
+  };
+
+  // 6. Z5 - Tiros de Economia de Corrida
+  const speedSpeed = +(vPeak * 1.08).toFixed(1);
+  const speedRecSpeed = +(Math.max(4.0, vPeak * 0.45)).toFixed(1);
+  const cardSpeed = {
+    id: 'speed-z5',
+    category: 'intervalado',
+    title: 'Tiros Curtos de Economia & Cadência (6x 45s)',
+    targetZone: 'Z5',
+    colorTheme: 'rose',
+    goalDescription: 'Recrutamento de fibras musculares rápidas, rigidez do complexo tendíneo e economia de corrida.',
+    mainSpeedKmh: speedSpeed,
+    recoverySpeedKmh: speedRecSpeed,
+    mainPaceStr: pace(speedSpeed),
+    recoveryPaceStr: pace(speedRecSpeed),
+    mainHrMin: Math.round(hrMax * 0.85),
+    mainHrMax: hrMax,
+    mainHrRangeStr: 'Esforço neuromuscular máximo (não guiado por FC)',
+    rpeDescription: 'Esforço de velocidade máxima controlada com técnica impecável (Borg 9–10)',
+    talkTest: 'Sem falar durante os tiros de 45 segundos',
+    totalDurationMin: 30,
+    steps: [
+      { phase: 'warmup', label: 'Aquecimento Extensivo', durationStr: '12 min', speedKmh: z2Speed, paceStr: pace(z2Speed), instruction: 'Trote suave + educativos de corrida e 3 acelerações curtas' },
+      { phase: 'main', label: 'Série 6x 45s com 2 min Pausa Completa', durationStr: '15 min', speedKmh: speedSpeed, paceStr: pace(speedSpeed), instruction: `6 tiros de 45s a ${speedSpeed} km/h com 2 minutos de recuperação em caminhada muito lenta a ${speedRecSpeed} km/h ou apoio lateral` },
+      { phase: 'cooldown', label: 'Desaquecimento Suave', durationStr: '5 min', speedKmh: 4.2, paceStr: pace(4.2), instruction: 'Caminhada lenta para relaxamento muscular' }
+    ]
+  };
+
+  return [cardZ1, cardZ2, cardZ3, cardZ4, cardShort, cardSpeed];
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
     classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
     evaluateHrSample, computeStableStageHr, assessBtSignalQuality,
-    computeVPeak, compareAssessments
+    computeVPeak, compareAssessments,
+    generateStudentAccessCode, generateWorkoutPrescriptions
   };
 }

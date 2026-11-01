@@ -4,7 +4,8 @@ const {
   vo2At, pace, getAvg, diagnoseVO2, deriveVTs, computeHrMax, computeZones, tteClass,
   classifySpo2, classifyGlicose, parseHeartRateMeasurement, isPlausibleHr,
   evaluateHrSample, computeStableStageHr, assessBtSignalQuality,
-  computeVPeak, compareAssessments
+  computeVPeak, compareAssessments,
+  generateStudentAccessCode, generateWorkoutPrescriptions
 } = require('../assets/calc.js');
 
 test('vo2At reproduz a tabela do protocolo (velocidade → VO2)', () => {
@@ -391,3 +392,90 @@ test('compareAssessments: calcula deltas de evolução e pareia FC/RPE por veloc
   assert.equal(st11.currHr, 184);
   assert.equal(st11.deltaHr, null);
 });
+
+/* ================= FEATURE 009: LOGIN, CADASTRO E PRESCRIÇÃO DE TREINOS ================= */
+
+test('generateStudentAccessCode: gera código limpo em caixa alta e PIN de 4 dígitos', () => {
+  const r1 = generateStudentAccessCode('Juliana Costa', 742);
+  assert.equal(r1.code, 'JULIANA-742');
+  assert.equal(r1.pin.length, 4);
+  assert.equal(typeof r1.pin, 'string');
+
+  const r2 = generateStudentAccessCode('João D\'Ávila Jr.', 125);
+  assert.equal(r2.code, 'JOAO-125');
+
+  const rFallback = generateStudentAccessCode('', 50);
+  assert.equal(rFallback.code, 'ALUNO-050');
+  assert.equal(rFallback.pin.length, 4);
+});
+
+test('generateWorkoutPrescriptions: tratamento defensivo para avaliações vazias ou inválidas', () => {
+  assert.deepEqual(generateWorkoutPrescriptions(null), []);
+  assert.deepEqual(generateWorkoutPrescriptions({}), []);
+  assert.deepEqual(generateWorkoutPrescriptions({ test: { vPeak: 0 } }), []);
+  assert.deepEqual(generateWorkoutPrescriptions({ test: { vPeak: -5 } }), []);
+});
+
+test('generateWorkoutPrescriptions: gera 6 fichas com velocidades, paces e passos para esteira', () => {
+  const assessment = {
+    test: {
+      vPeak: 12.0,
+      vo2max: 42.0,
+      hrMax: 190,
+      vt1V: 8.5,
+      vt2V: 10.2,
+      fcVT1: 150,
+      fcVT2: 172
+    },
+    screen: { fc: 60 }
+  };
+
+  const cards = generateWorkoutPrescriptions(assessment);
+  assert.equal(cards.length, 6);
+
+  // 1. Z1 - Regenerativo (60% de 12.0 = 7.2 km/h)
+  const z1 = cards.find(c => c.id === 'rec-z1');
+  assert.ok(z1);
+  assert.equal(z1.targetZone, 'Z1');
+  assert.equal(z1.mainSpeedKmh, 7.2);
+  assert.equal(z1.mainPaceStr, pace(7.2));
+  assert.equal(z1.steps.length, 3);
+  assert.equal(z1.steps[0].phase, 'warmup');
+  assert.equal(z1.steps[1].phase, 'main');
+  assert.equal(z1.steps[2].phase, 'cooldown');
+
+  // 2. Z2 - Base Aeróbia (abaixo do VT1 8.5 -> min(8.3, 8.6) = 8.3 km/h)
+  const z2 = cards.find(c => c.id === 'base-z2');
+  assert.ok(z2);
+  assert.equal(z2.targetZone, 'Z2');
+  assert.equal(z2.mainSpeedKmh, 8.3);
+  assert.equal(z2.mainPaceStr, pace(8.3));
+  assert.ok(z2.mainHrMin > 100);
+  assert.ok(z2.mainHrMax >= z2.mainHrMin);
+
+  // 3. Z3 - Tempo Run (entre VT1 e VT2 -> 10.0 km/h)
+  const z3 = cards.find(c => c.id === 'tempo-z3');
+  assert.ok(z3);
+  assert.equal(z3.targetZone, 'Z3');
+  assert.equal(z3.mainSpeedKmh, 10.0);
+  assert.equal(z3.mainPaceStr, pace(10.0));
+
+  // 4. Z4 - Intervalado Longo VO2máx (96% de 12.0 = 11.5 km/h, rec trote ~6.6 km/h)
+  const z4 = cards.find(c => c.id === 'hiit-vo2-z4');
+  assert.ok(z4);
+  assert.equal(z4.targetZone, 'Z4');
+  assert.equal(z4.mainSpeedKmh, 11.5);
+  assert.equal(z4.recoverySpeedKmh, 6.6);
+
+  // 5. HIIT Curto (102% de 12.0 = 12.2 km/h)
+  const shortHiit = cards.find(c => c.id === 'hiit-short');
+  assert.ok(shortHiit);
+  assert.equal(shortHiit.mainSpeedKmh, 12.2);
+
+  // 6. Tiros Z5 (108% de 12.0 = 13.0 km/h)
+  const speed = cards.find(c => c.id === 'speed-z5');
+  assert.ok(speed);
+  assert.equal(speed.targetZone, 'Z5');
+  assert.equal(speed.mainSpeedKmh, 13.0);
+});
+
