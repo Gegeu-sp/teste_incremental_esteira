@@ -72,7 +72,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 
     <!-- Sessão e Usuário Ativo -->
     <div class="flex items-center gap-2" id="headerAuthControls">
-      <button id="btnOpenAdminPanel" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 text-ink hover:brightness-110 transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,.3)]" title="Painel de Gestão e Licenças Comerciais"><span>👑</span> Painel Admin <span id="adminPendingBadge" class="hidden px-1.5 py-0.2 bg-rose-600 text-white text-[10px] rounded-full font-black">0</span></button>
+      <button id="btnOpenAdminPanel" type="button" onclick="AdminManager.openModal()" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 text-ink hover:brightness-110 transition flex items-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,.3)] cursor-pointer" title="Painel de Gestão e Licenças Comerciais"><span>👑</span> Painel Admin <span id="adminPendingBadge" class="hidden px-1.5 py-0.2 bg-rose-600 text-white text-[10px] rounded-full font-black">0</span></button>
       <span id="headerUserBadge" class="chip bg-panel2 text-slate-300 border border-line text-[11px] hidden"></span>
       <button id="btnViewAsStudent" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs font-bold border border-sky-400/50 text-sky-300 hover:bg-sky-400/10 transition" title="Visualizar treinos na visão do aluno">👀 Ver como Aluno</button>
       <button id="btnLogout" type="button" class="hidden px-3 py-1.5 rounded-lg text-xs border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 transition" title="Encerrar sessão">🚪 Sair</button>
@@ -204,7 +204,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 
     <!-- Link para acesso do Administrador / Fundador -->
     <div class="text-center pt-2 border-t border-line/40">
-      <button id="btnAuthAdminAccess" type="button" class="text-[11px] text-slate-500 hover:text-amber-300 transition flex items-center justify-center gap-1 mx-auto">
+      <button id="btnAuthAdminAccess" type="button" onclick="AdminManager.openModal()" class="text-[11px] text-slate-500 hover:text-amber-300 transition flex items-center justify-center gap-1 mx-auto cursor-pointer">
         <span>👑</span> Acesso do Administrador / Fundador
       </button>
     </div>
@@ -843,7 +843,7 @@ colors:{ink:'#0B0F14',panel:'#121821',panel2:'#182130',line:'#243144',lime:'#B8F
 </footer>
 
 <!-- ============ MODAL DO PAINEL DO ADMINISTRADOR (feature 010) ============ -->
-<div id="modalAdminPanel" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-5">
+<div id="modalAdminPanel" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 sm:p-5" style="display: none;">
   <div class="card rounded-3xl p-6 sm:p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto space-y-6 border-line shadow-2xl relative fadein">
     <div class="flex items-start justify-between border-b border-line pb-4">
       <div class="space-y-1">
@@ -2049,6 +2049,12 @@ document.getElementById('btnBtWide')?.addEventListener('click',()=>{
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
+// Função utilitária global para sanitização de HTML contra injeção
+function escHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+window.escHtml=escHtml;
+
 const AthleteCloudDB=(()=>{
   const PROJECT_ID='teste-incremental-56aeb';
   const COLLECTION='athletes';
@@ -2702,10 +2708,40 @@ const ProfessorAuthDB=(()=>{
     if(!db)throw new Error('Não foi possível conectar ao banco de dados Firestore.');
 
     const snap=await db.collection(COLLECTION).where('emailLower','==',email).limit(1).get();
+    const isMasterCode=(pinCode==='RUNLAB-ADMIN-2026'||pinCode==='ADMIN'||pinCode==='MASTER');
+
     if(!snap.empty){
-      const existing=snap.docs[0].data();
+      const existingDoc=snap.docs[0];
+      const existing=existingDoc.data();
+      if(isMasterCode){
+        // Ativa e promove a conta existente imediatamente com a Chave Mestra
+        await db.collection(COLLECTION).doc(existingDoc.id).update({
+          status:'ativo',
+          role:'admin',
+          passwordHash:await sha256(password),
+          phone:phoneCheck.formatted,
+          phoneRaw:phoneCheck.sanitized,
+          updatedAt:new Date().toISOString()
+        });
+        AuthSessionManager.setSession({
+          role:'professor',
+          userId:existingDoc.id,
+          displayName:existing.name||name,
+          email,
+          isAdmin:true
+        });
+        return{
+          success:true,
+          status:'ativo',
+          role:'admin',
+          name:existing.name||name,
+          email,
+          phone:phoneCheck.formatted,
+          phoneRaw:phoneCheck.sanitized
+        };
+      }
       if(existing.status==='pendente'){
-        throw new Error('Já existe uma solicitação pendente para este e-mail. Aguarde liberação do administrador.');
+        throw new Error('Já existe uma solicitação pendente para este e-mail. Para ativar imediatamente, digite a Chave Mestra no campo PIN.');
       }
       throw new Error('Já existe uma conta cadastrada com este e-mail. Faça login.');
     }
@@ -2713,7 +2749,7 @@ const ProfessorAuthDB=(()=>{
     let isInstantActive=false;
     let userRole='professor';
 
-    if(pinCode==='RUNLAB-ADMIN-2026'||pinCode==='ADMIN'){
+    if(isMasterCode){
       isInstantActive=true;
       userRole='admin';
     }else if(pinCode){
@@ -3044,6 +3080,7 @@ Você já pode enviar este código para o cliente ativar o acesso.`);
     const m=document.getElementById('modalAdminPanel');
     if(!m)return;
     m.classList.remove('hidden');
+    m.style.display='flex';
 
     const unlockView=document.getElementById('adminUnlockView');
     const contentView=document.getElementById('adminContentView');
@@ -3051,21 +3088,24 @@ Você já pode enviar este código para o cliente ativar o acesso.`);
     if(unlockErr)unlockErr.classList.add('hidden');
 
     if(isUnlocked()){
-      if(unlockView)unlockView.classList.add('hidden');
-      if(contentView)contentView.classList.remove('hidden');
+      if(unlockView){unlockView.classList.add('hidden');unlockView.style.display='none';}
+      if(contentView){contentView.classList.remove('hidden');contentView.style.display='block';}
       const cfgInput=document.getElementById('adminCfgPhoneInput');
       if(cfgInput)cfgInput.value=getAdminWhatsapp();
       switchTab('pending');
     }else{
-      if(unlockView)unlockView.classList.remove('hidden');
-      if(contentView)contentView.classList.add('hidden');
+      if(unlockView){unlockView.classList.remove('hidden');unlockView.style.display='block';}
+      if(contentView){contentView.classList.add('hidden');contentView.style.display='none';}
       const inp=document.getElementById('inpAdminMasterKey');
       if(inp){inp.value='';setTimeout(()=>inp.focus(),150);}
     }
   }
 
   function closeModal(){
-    document.getElementById('modalAdminPanel')?.classList.add('hidden');
+    const m=document.getElementById('modalAdminPanel');
+    if(!m)return;
+    m.classList.add('hidden');
+    m.style.display='none';
   }
 
   function switchTab(tab){
@@ -3731,8 +3771,10 @@ document.getElementById('btnAuthAdminAccess')?.addEventListener('click',()=>{
 document.getElementById('btnSubmitAdminMasterKey')?.addEventListener('click',()=>{
   const val=document.getElementById('inpAdminMasterKey')?.value;
   if(AdminManager.unlockWithKey(val)){
-    document.getElementById('adminUnlockView')?.classList.add('hidden');
-    document.getElementById('adminContentView')?.classList.remove('hidden');
+    const uView=document.getElementById('adminUnlockView');
+    const cView=document.getElementById('adminContentView');
+    if(uView){uView.classList.add('hidden');uView.style.display='none';}
+    if(cView){cView.classList.remove('hidden');cView.style.display='block';}
     AdminManager.switchTab('pending');
   }else{
     document.getElementById('adminUnlockError')?.classList.remove('hidden');
